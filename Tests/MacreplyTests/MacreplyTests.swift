@@ -111,7 +111,8 @@ struct MacreplyTests {
             #expect(maxFeed == 640)
         }
 
+        #expect(SubTheme.minWindowHeight == 482)
         #expect(SubTheme.minWindowHeight(isAuthenticated: true) == 482)
-        #expect(SubTheme.minWindowHeight(isAuthenticated: false) == 278)
+        #expect(SubTheme.minWindowHeight(isAuthenticated: false) == 482)
     }
 }

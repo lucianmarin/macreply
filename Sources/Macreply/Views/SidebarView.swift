@@ -67,10 +67,14 @@ public enum SubTheme {
     public static let sidebarRowHeight: CGFloat = 32
     public static let sidebarRowSpacing: CGFloat = 2
 
-    public static func minWindowHeight(isAuthenticated: Bool) -> CGFloat {
-        let count = CGFloat(SidebarSection.visibleSections(isAuthenticated: isAuthenticated).count)
+    public static var minWindowHeight: CGFloat {
+        let count = CGFloat(SidebarSection.visibleSections(isAuthenticated: true).count)
         let rowsHeight = (count * sidebarRowHeight) + (max(0, count - 1) * sidebarRowSpacing)
         return sidebarTopHeaderHeight + rowsHeight + sidebarBottomPadding
+    }
+
+    public static func minWindowHeight(isAuthenticated: Bool) -> CGFloat {
+        minWindowHeight
     }
 }
 
@@ -288,7 +292,7 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
                 window.contentMaxSize = NSSize(width: maxW, height: .greatestFiniteMagnitude)
             }
 
-            if !window.styleMask.contains(.fullScreen) {
+            if !window.styleMask.contains(.fullScreen) && !window.inLiveResize {
                 var frame = window.frame
                 let clampedWidth = min(max(frame.size.width, minW), maxW)
                 let clampedHeight = max(frame.size.height, minH)
@@ -316,14 +320,33 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
             isAdjusting = true
             defer { isAdjusting = false }
 
-            // Shift the 32pt titlebar container down by 18.5pt so traffic lights center at Y = 34.5pt from top,
-            // matching the 29pt compose field at 20pt top padding (20 + 14.5 = 34.5pt).
-            let targetContainerY = window.frame.height - container.frame.height - 18.5
-            if abs(container.frame.origin.y - targetContainerY) > 0.25 || abs(container.frame.origin.x) > 0.25 {
-                container.setFrameOrigin(NSPoint(x: 0, y: targetContainerY))
+            // Hide internal AppKit titlebar decoration/background views so no border or highlight line is drawn.
+            for sub in container.subviews where String(describing: type(of: sub)).contains("Decoration") {
+                sub.isHidden = true
+            }
+            for sub in titlebar.subviews where String(describing: type(of: sub)).contains("Background") {
+                sub.isHidden = true
             }
 
-            let buttonY = (titlebar.bounds.height - close.frame.height) / 2.0
+            // Keep the titlebar container anchored flush to the top edge of the window (maxY == window.frame.height)
+            // and position the traffic lights inside it at center Y = 34.5pt from top (matching the compose field).
+            let headerHeight: CGFloat = 69.0
+            let targetContainerFrame = NSRect(
+                x: 0,
+                y: window.frame.height - headerHeight,
+                width: window.frame.width,
+                height: headerHeight
+            )
+            if abs(container.frame.origin.y - targetContainerFrame.origin.y) > 0.25
+                || abs(container.frame.size.height - targetContainerFrame.size.height) > 0.25
+                || abs(container.frame.size.width - targetContainerFrame.size.width) > 0.25 {
+                container.frame = targetContainerFrame
+            }
+            if titlebar.frame != container.bounds {
+                titlebar.frame = container.bounds
+            }
+
+            let buttonY = headerHeight - 34.5 - (close.frame.height / 2.0)
             close.setFrameOrigin(NSPoint(x: 12, y: buttonY))
             mini.setFrameOrigin(NSPoint(x: 32, y: buttonY))
             zoom.setFrameOrigin(NSPoint(x: 52, y: buttonY))
@@ -613,36 +636,34 @@ public struct SidebarView: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // Fake titlebar area holding the macOS window controls (aligned with the compose field)
-            FakeTitleBarDragRegion()
-                .frame(height: SubTheme.sidebarTopHeaderHeight)
-                .frame(maxWidth: .infinity)
+        GeometryReader { _ in
+            VStack(spacing: 0) {
+                // Fake titlebar area holding the macOS window controls (aligned with the compose field)
+                FakeTitleBarDragRegion()
+                    .frame(height: SubTheme.sidebarTopHeaderHeight)
+                    .frame(maxWidth: .infinity)
 
-            VStack(alignment: appState.isCompactSidebar ? .center : .trailing, spacing: SubTheme.sidebarRowSpacing) {
-                ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
-                    SidebarRowButton(
-                        section: section,
-                        isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
-                        isCompact: appState.isCompactSidebar,
-                        badgeCount: appState.badgeCount(for: section)
-                    ) {
-                        appState.selectSection(section)
+                VStack(alignment: appState.isCompactSidebar ? .center : .trailing, spacing: SubTheme.sidebarRowSpacing) {
+                    ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
+                        SidebarRowButton(
+                            section: section,
+                            isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
+                            isCompact: appState.isCompactSidebar,
+                            badgeCount: appState.badgeCount(for: section)
+                        ) {
+                            appState.selectSection(section)
+                        }
                     }
                 }
-            }
-            .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
-            .padding(.bottom, SubTheme.sidebarBottomPadding)
-            .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
+                .padding(.bottom, SubTheme.sidebarBottomPadding)
 
-            FakeTitleBarDragRegion()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                FakeTitleBarDragRegion()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .frame(
             width: SubTheme.sidebarWidth(isCompact: appState.isCompactSidebar)
-        )
-        .frame(
-            minHeight: SubTheme.minWindowHeight(isAuthenticated: appState.isAuthenticated)
         )
         .ignoresSafeArea(.container, edges: .top)
         .background(
