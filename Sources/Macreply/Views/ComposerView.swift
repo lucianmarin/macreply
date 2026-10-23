@@ -36,7 +36,7 @@ public struct ComposerView: View {
                     .font(.system(size: 14))
                     .lineLimit(1...8)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 6)
                     .padding(.trailing, text.isEmpty ? 0 : 44)
                     .background(
                         RoundedRectangle(cornerRadius: SubTheme.radius)
@@ -69,7 +69,7 @@ public struct ComposerView: View {
                     .foregroundStyle(SubTheme.alert)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.bottom, 8)
     }
 
     private func submitIfReady() {
@@ -123,7 +123,7 @@ public struct PlaceholderBannerView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.vertical, 6)
         .background(
             LinearGradient(
                 colors: [SubTheme.whitesmoke, SubTheme.background],
@@ -132,7 +132,7 @@ public struct PlaceholderBannerView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: SubTheme.radius))
         )
-        .padding(.vertical, 8)
+        .padding(.bottom, 8)
     }
 }
 
@@ -154,7 +154,7 @@ public struct SearchQueryBar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .padding(.horizontal, 10)
-                .padding(.vertical, 7)
+                .padding(.vertical, 6)
                 .onSubmit {
                     onSearch()
                 }
@@ -176,7 +176,7 @@ public struct SearchQueryBar: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
-                    .frame(width: 30, height: 28)
+                    .frame(width: 30, height: 29)
             }
             .buttonStyle(.subLink)
             .padding(.trailing, 4)
@@ -185,6 +185,6 @@ public struct SearchQueryBar: View {
             RoundedRectangle(cornerRadius: SubTheme.radius)
                 .fill(SubTheme.whitesmoke)
         )
-        .padding(.vertical, 8)
+        .padding(.bottom, 8)
     }
 }

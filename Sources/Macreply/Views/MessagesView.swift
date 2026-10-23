@@ -80,11 +80,11 @@ public struct MessagesInboxView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(SubTheme.background)
-        .navigationTitle("Messages")
         .task(id: appState.feedRefreshTrigger) {
             await loadInbox(reset: true)
         }
@@ -273,11 +273,11 @@ public struct ConversationView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(SubTheme.background)
-        .navigationTitle("Message @\(username)")
         .task(id: "\(username.lowercased())-\(appState.feedRefreshTrigger.uuidString)") {
             await loadConversation(reset: true)
         }

@@ -109,11 +109,11 @@ public struct FeedView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(SubTheme.background)
-        .navigationTitle(section.title)
         .task(id: "\(section.rawValue)-\(appState.feedRefreshTrigger.uuidString)") {
             if section == .discover {
                 searchQuery = appState.discoverSearchQuery

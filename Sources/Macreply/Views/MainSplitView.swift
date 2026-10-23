@@ -6,27 +6,40 @@ public struct MainSplitView: View {
     public init() {}
 
     public var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: 155, ideal: 175, max: 210)
-        } detail: {
+
+            Divider()
+                .ignoresSafeArea()
+
             NavigationStack(path: $appState.navigationPath) {
                 rootSectionView(for: appState.selectedSection)
+                    .toolbar(.hidden, for: .windowToolbar)
                     .navigationDestination(for: NavigationDestination.self) { destination in
-                        switch destination {
-                        case .reply(let id):
-                            ReplyDetailView(replyID: id)
-                        case .member(let username):
-                            MemberView(username: username)
-                        case .conversation(let username):
-                            ConversationView(username: username)
-                        case .editEntry(let entry):
-                            EditEntryView(entry: entry)
+                        Group {
+                            switch destination {
+                            case .reply(let id):
+                                ReplyDetailView(replyID: id)
+                            case .member(let username):
+                                MemberView(username: username)
+                            case .conversation(let username):
+                                ConversationView(username: username)
+                            case .editEntry(let entry):
+                                EditEntryView(entry: entry)
+                            }
                         }
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar(.hidden, for: .windowToolbar)
                     }
             }
+            .ignoresSafeArea(.container, edges: .top)
+            .background(SubTheme.background.ignoresSafeArea())
         }
-        .background(SubTheme.background)
+        .ignoresSafeArea(.container, edges: .top)
+        .background(
+            FakeTitleBarWindowConfigurator()
+                .frame(width: 0, height: 0)
+        )
     }
 
     @ViewBuilder

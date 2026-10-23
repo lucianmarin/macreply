@@ -130,6 +130,11 @@ public final class AppState: ObservableObject {
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
     @Published public var feedRefreshTrigger: UUID = UUID()
+    @Published public var isCompactSidebar: Bool {
+        didSet {
+            UserDefaults.standard.set(isCompactSidebar, forKey: StorageKeys.compactSidebar)
+        }
+    }
 
     public let apiClient: APIClient
     private var notificationTask: Task<Void, Never>?
@@ -140,6 +145,7 @@ public final class AppState: ObservableObject {
         static let email = "macreply.auth.email"
         static let apiBaseURL = "macreply.config.apiBaseURL"
         static let followedUsernames = "macreply.social.following"
+        static let compactSidebar = "macreply.ui.compactSidebar"
     }
 
     public var isAuthenticated: Bool {
@@ -162,6 +168,7 @@ public final class AppState: ObservableObject {
         self.currentUser = savedUser
         self.currentEmail = savedEmail
         self.followedUsernames = Set(savedFollowing.map { $0.lowercased() })
+        self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
 

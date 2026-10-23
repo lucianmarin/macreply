@@ -91,7 +91,165 @@ public extension View {
     }
 }
 
-/// Observes trackpad/mouse scroll-wheel gestures on the enclosing `NSScrollView` without altering its layout or insets.
+/// Configures the hosting `NSWindow` to hide the native titlebar/toolbar and vertically align
+/// the standard macOS traffic light controls (center Y = 22.5pt from top) with the top compose field.
+public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
+    public init() {}
+
+    public func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    public func makeNSView(context: Context) -> NSView {
+        let view = WindowObserverView()
+        view.onWindowAttached = { window in
+            context.coordinator.attach(to: window)
+        }
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSView, context: Context) {
+        if let window = nsView.window {
+            context.coordinator.attach(to: window)
+        }
+    }
+
+    private final class WindowObserverView: NSView {
+        var onWindowAttached: ((NSWindow) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            onWindowAttached?(window)
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let self, let window else { return }
+                self.onWindowAttached?(window)
+            }
+        }
+    }
+
+    @MainActor
+    public final class Coordinator: NSObject {
+        private weak var observedWindow: NSWindow?
+        private weak var observedContainer: NSView?
+        private var isAdjusting = false
+        private nonisolated(unsafe) var observers: [NSObjectProtocol] = []
+
+        public func attach(to window: NSWindow) {
+            configureWindow(window)
+            repositionTrafficLights(in: window)
+
+            guard observedWindow !== window else { return }
+            removeObservers()
+            observedWindow = window
+
+            let center = NotificationCenter.default
+            let windowNotifications: [Notification.Name] = [
+                NSWindow.didResizeNotification,
+                NSWindow.didEndLiveResizeNotification,
+                NSWindow.didBecomeKeyNotification,
+                NSWindow.didResignKeyNotification,
+                NSWindow.didDeminiaturizeNotification,
+                NSWindow.didExitFullScreenNotification
+            ]
+
+            for name in windowNotifications {
+                let token = center.addObserver(forName: name, object: window, queue: .main) { [weak self, weak window] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, let window else { return }
+                        self.configureWindow(window)
+                        self.repositionTrafficLights(in: window)
+                    }
+                }
+                observers.append(token)
+            }
+
+            if let container = window.standardWindowButton(.closeButton)?.superview?.superview {
+                observedContainer = container
+                container.postsFrameChangedNotifications = true
+                let token = center.addObserver(
+                    forName: NSView.frameDidChangeNotification,
+                    object: container,
+                    queue: .main
+                ) { [weak self, weak window] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, let window else { return }
+                        self.repositionTrafficLights(in: window)
+                    }
+                }
+                observers.append(token)
+            }
+        }
+
+        private func configureWindow(_ window: NSWindow) {
+            if window.toolbar != nil {
+                window.toolbar = nil
+            }
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.titlebarSeparatorStyle = .none
+            window.styleMask.insert(.fullSizeContentView)
+            window.isMovableByWindowBackground = true
+        }
+
+        private func repositionTrafficLights(in window: NSWindow) {
+            guard !isAdjusting,
+                  !window.styleMask.contains(.fullScreen),
+                  let close = window.standardWindowButton(.closeButton),
+                  let mini = window.standardWindowButton(.miniaturizeButton),
+                  let zoom = window.standardWindowButton(.zoomButton),
+                  let titlebar = close.superview,
+                  let container = titlebar.superview else {
+                return
+            }
+
+            isAdjusting = true
+            defer { isAdjusting = false }
+
+            // Shift the 32pt titlebar container down by 6.5pt so traffic lights center at Y = 22.5pt from top,
+            // matching the 29pt compose field at top padding 8pt (8 + 14.5 = 22.5pt).
+            let targetContainerY = window.frame.height - container.frame.height - 6.5
+            if abs(container.frame.origin.y - targetContainerY) > 0.25 || abs(container.frame.origin.x) > 0.25 {
+                container.setFrameOrigin(NSPoint(x: 0, y: targetContainerY))
+            }
+
+            let buttonY = (titlebar.bounds.height - close.frame.height) / 2.0
+            close.setFrameOrigin(NSPoint(x: 12, y: buttonY))
+            mini.setFrameOrigin(NSPoint(x: 32, y: buttonY))
+            zoom.setFrameOrigin(NSPoint(x: 52, y: buttonY))
+        }
+
+        private nonisolated func removeObservers() {
+            for token in observers {
+                NotificationCenter.default.removeObserver(token)
+            }
+            observers.removeAll()
+        }
+
+        deinit {
+            removeObservers()
+        }
+    }
+}
+
+/// Draggable fake titlebar region so the user can drag the window from the top area.
+public struct FakeTitleBarDragRegion: NSViewRepresentable {
+    public init() {}
+
+    public func makeNSView(context: Context) -> NSView {
+        DraggableTitleBarNSView()
+    }
+
+    public func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class DraggableTitleBarNSView: NSView {
+        override var mouseDownCanMoveWindow: Bool { true }
+
+        override func mouseDown(with event: NSEvent) {
+            window?.performDrag(with: event)
+        }
+    }
+}
 private struct MacScrollViewBridge: NSViewRepresentable {
     let onPullGesture: (_ pullDistance: CGFloat, _ phase: NSEvent.Phase) -> Void
 
@@ -247,6 +405,7 @@ public struct RefreshableScrollView<Content: View>: View {
                 content()
             }
         }
+        .ignoresSafeArea(.container, edges: .top)
         .overlay(alignment: .top) {
             if showIndicator {
                 HStack(spacing: 7) {
@@ -320,34 +479,67 @@ public struct RefreshableScrollView<Content: View>: View {
     }
 }
 
+public struct SidebarVisualEffectView: NSViewRepresentable {
+    public init() {}
+
+    public func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = .sidebar
+        nsView.blendingMode = .behindWindow
+        nsView.state = .followsWindowActiveState
+    }
+}
+
 public struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
 
     public init() {}
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .trailing, spacing: 2) {
-                ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
-                    SidebarRowButton(
-                        section: section,
-                        isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
-                        badgeCount: appState.badgeCount(for: section)
-                    ) {
-                        appState.selectSection(section)
+        VStack(spacing: 0) {
+            // Fake titlebar area holding the macOS window controls (aligned with the compose field)
+            FakeTitleBarDragRegion()
+                .frame(height: 45)
+                .frame(maxWidth: .infinity)
+
+            ScrollView {
+                VStack(alignment: appState.isCompactSidebar ? .center : .trailing, spacing: 2) {
+                    ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
+                        SidebarRowButton(
+                            section: section,
+                            isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
+                            isCompact: appState.isCompactSidebar,
+                            badgeCount: appState.badgeCount(for: section)
+                        ) {
+                            appState.selectSection(section)
+                        }
                     }
                 }
+                .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
+                .padding(.top, 0)
+                .padding(.bottom, 12)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 12)
         }
-        .background(SubTheme.background)
+        .frame(width: appState.isCompactSidebar ? 78 : 155)
+        .ignoresSafeArea(.container, edges: .top)
+        .background(
+            SidebarVisualEffectView()
+                .ignoresSafeArea()
+        )
     }
 }
 
 private struct SidebarRowButton: View {
     let section: SidebarSection
     let isSelected: Bool
+    let isCompact: Bool
     let badgeCount: Int
     let action: () -> Void
 
@@ -359,12 +551,15 @@ private struct SidebarRowButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
+            HStack(spacing: isCompact ? 0 : 10) {
+                if !isCompact {
+                    Spacer(minLength: 0)
 
-                Text(section.title)
-                    .font(.system(size: 14, weight: isSelected ? .medium : .regular))
-                    .foregroundStyle(isSelected ? Color.white : Color.primary)
+                    Text(section.title)
+                        .font(.system(size: 14, weight: isSelected ? .medium : .regular))
+                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .lineLimit(1)
+                }
 
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: section.systemImage)
@@ -382,8 +577,9 @@ private struct SidebarRowButton: View {
                     }
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, isCompact ? 7 : 10)
             .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: isCompact ? .center : .trailing)
             .background(
                 RoundedRectangle(cornerRadius: SubTheme.radius)
                     .fill(rowBackground)
@@ -391,6 +587,7 @@ private struct SidebarRowButton: View {
             .contentShape(RoundedRectangle(cornerRadius: SubTheme.radius))
         }
         .buttonStyle(.subLink)
+        .help(isCompact ? section.title : "")
         .onHover { hovering in
             isHovered = hovering
         }
@@ -400,7 +597,7 @@ private struct SidebarRowButton: View {
         if isSelected {
             return SubTheme.alert
         } else if isHovered {
-            return SubTheme.whitesmoke
+            return Color.primary.opacity(0.08)
         } else {
             return .clear
         }

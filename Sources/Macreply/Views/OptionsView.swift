@@ -62,11 +62,12 @@ public struct OptionsView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)
-        .navigationTitle("Options")
         .onAppear {
             populateFromCurrentUser()
         }

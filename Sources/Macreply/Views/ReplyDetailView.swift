@@ -87,6 +87,7 @@ public struct ReplyDetailView: View {
 
                     // Reply Input (`templates/input/reply.html`)
                     replyComposerSection(for: entry)
+                        .padding(.top, 4)
 
                     // Descendant Threads (`templates/common/threads.html`)
                     if !kids.isEmpty {
@@ -107,11 +108,11 @@ public struct ReplyDetailView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .background(SubTheme.background)
-        .navigationTitle("Reply #\(replyID)")
         .task(id: "\(replyID)-\(appState.feedRefreshTrigger.uuidString)") {
             await loadThread()
         }
@@ -235,10 +236,11 @@ public struct EditEntryView: View {
             }
             .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)
-        .navigationTitle("Edit #\(entry.id)")
     }
 }

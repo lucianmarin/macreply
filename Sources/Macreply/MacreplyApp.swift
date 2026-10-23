@@ -15,9 +15,22 @@ public struct MacreplyApp: App {
                 .environmentObject(appState)
                 .frame(minWidth: 740, minHeight: 460)
         }
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 820, height: 640)
         .commands {
+            CommandGroup(replacing: .sidebar) {
+                Toggle("Compact sidebar", isOn: $appState.isCompactSidebar)
+            }
+
             CommandMenu("Navigate") {
+                Button("Back") {
+                    if !appState.navigationPath.isEmpty {
+                        appState.navigationPath.removeLast()
+                    }
+                }
+                .keyboardShortcut("[", modifiers: [.command])
+                .disabled(appState.navigationPath.isEmpty)
+
                 Button("Refresh Feed") {
                     appState.feedRefreshTrigger = UUID()
                     Task {
