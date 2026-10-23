@@ -126,7 +126,6 @@ public final class AppState: ObservableObject {
     @Published public var token: String?
     @Published public var apiBaseURL: String
     @Published public var notifications: SubNotifications = SubNotifications()
-    @Published public var followedUsernames: Set<String> = []
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
     @Published public var feedRefreshTrigger: UUID = UUID()
@@ -144,7 +143,6 @@ public final class AppState: ObservableObject {
         static let userJSON = "macreply.auth.user"
         static let email = "macreply.auth.email"
         static let apiBaseURL = "macreply.config.apiBaseURL"
-        static let followedUsernames = "macreply.social.following"
         static let compactSidebar = "macreply.ui.compactSidebar"
     }
 
@@ -156,7 +154,6 @@ public final class AppState: ObservableObject {
         let savedBaseURL = defaults.string(forKey: StorageKeys.apiBaseURL) ?? "https://subreply.com/api"
         let savedToken = defaults.string(forKey: StorageKeys.token)
         let savedEmail = defaults.string(forKey: StorageKeys.email) ?? ""
-        let savedFollowing = defaults.stringArray(forKey: StorageKeys.followedUsernames) ?? []
 
         var savedUser: SubUser?
         if let userData = defaults.data(forKey: StorageKeys.userJSON) {
@@ -167,16 +164,12 @@ public final class AppState: ObservableObject {
         self.token = savedToken
         self.currentUser = savedUser
         self.currentEmail = savedEmail
-        self.followedUsernames = Set(savedFollowing.map { $0.lowercased() })
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
 
         if isAuthenticated {
             startNotificationPolling()
-            Task {
-                await syncFollowingList()
-            }
         }
     }
 
@@ -231,7 +224,6 @@ public final class AppState: ObservableObject {
         Task {
             await apiClient.setConfiguration(baseURLString: apiBaseURL, token: token)
             await refreshNotifications()
-            await syncFollowingList()
         }
         navigationPath.removeAll()
         selectedSection = .feed
@@ -265,41 +257,12 @@ public final class AppState: ObservableObject {
         token = nil
         currentUser = nil
         notifications = SubNotifications()
-        followedUsernames.removeAll()
         persistSession()
         Task {
             await apiClient.setConfiguration(baseURLString: apiBaseURL, token: nil)
         }
         navigationPath.removeAll()
         selectedSection = .login
-    }
-
-    public func isFollowing(_ username: String) -> Bool {
-        followedUsernames.contains(username.lowercased())
-    }
-
-    public func markFollowing(_ username: String, following: Bool) {
-        let clean = username.lowercased()
-        if following {
-            followedUsernames.insert(clean)
-        } else {
-            followedUsernames.remove(clean)
-        }
-        UserDefaults.standard.set(Array(followedUsernames), forKey: StorageKeys.followedUsernames)
-    }
-
-    public func syncFollowingList() async {
-        guard isAuthenticated else { return }
-        do {
-            let response = try await apiClient.fetchUsers(path: "/following", page: 1)
-            let names = response.entries.map { $0.username.lowercased() }
-            for name in names {
-                followedUsernames.insert(name)
-            }
-            UserDefaults.standard.set(Array(followedUsernames), forKey: StorageKeys.followedUsernames)
-        } catch {
-            // Ignore background sync failures
-        }
     }
 
     public func refreshNotifications() async {
@@ -363,6 +326,5 @@ public final class AppState: ObservableObject {
             defaults.removeObject(forKey: StorageKeys.userJSON)
         }
         defaults.set(currentEmail, forKey: StorageKeys.email)
-        defaults.set(Array(followedUsernames), forKey: StorageKeys.followedUsernames)
     }
 }

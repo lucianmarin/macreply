@@ -2,6 +2,7 @@ import Foundation
 
 public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var id: String { username }
+    public var followed: Bool
     public var username: String
     public var fullName: String
     public var firstName: String
@@ -16,6 +17,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var social: [String: String]
 
     enum CodingKeys: String, CodingKey {
+        case followed
         case username
         case fullName = "full_name"
         case firstName = "first_name"
@@ -31,6 +33,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     }
 
     public init(
+        followed: Bool = false,
         username: String,
         fullName: String,
         firstName: String,
@@ -44,6 +47,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         phone: [String: String] = [:],
         social: [String: String] = [:]
     ) {
+        self.followed = followed
         self.username = username
         self.fullName = fullName
         self.firstName = firstName
@@ -60,6 +64,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.followed = try container.decodeIfPresent(Bool.self, forKey: .followed) ?? false
         self.username = try container.decode(String.self, forKey: .username)
         self.fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? username
         self.firstName = try container.decodeIfPresent(String.self, forKey: .firstName) ?? ""

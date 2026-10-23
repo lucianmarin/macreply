@@ -68,7 +68,7 @@ public struct PeopleListView: View {
                             if index > 0 {
                                 Divider().overlay(SubTheme.whitesmoke)
                             }
-                            UserRowView(member: users[index])
+                            UserRowView(member: $users[index])
                         }
 
                         if canLoadMore && searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -129,11 +129,7 @@ public struct PeopleListView: View {
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
 
-            if section == .following {
-                for user in response.entries {
-                    appState.markFollowing(user.username, following: true)
-                }
-            } else if section == .followers {
+            if section == .followers {
                 appState.clearNotificationCount(for: .followers)
             }
         } catch {

@@ -33,6 +33,7 @@ struct MacreplyTests {
                     "id": 100,
                     "content": "Root thread content",
                     "created_by": {
+                        "followed": true,
                         "username": "lm",
                         "full_name": "🦊 Lucian M.",
                         "first_name": "Lucian",
@@ -67,6 +68,7 @@ struct MacreplyTests {
         #expect(decoded.entries.count == 1)
 
         let entry = decoded.entries[0]
+        #expect(entry.createdBy.followed == true)
         #expect(entry.hasExplicitNullParent == true)
         #expect(entry.parent == nil)
         #expect(entry.replyCount == 6)

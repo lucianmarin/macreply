@@ -5,13 +5,11 @@ import AppKit
 public struct UserRowView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.openURL) private var openURL
-    public let member: SubUser
+    @Binding public var member: SubUser
     public var isMemberHeader: Bool = false
 
-    @State private var isFollowingState: Bool = false
-
-    public init(member: SubUser, isMemberHeader: Bool = false) {
-        self.member = member
+    public init(member: Binding<SubUser>, isMemberHeader: Bool = false) {
+        self._member = member
         self.isMemberHeader = isMemberHeader
     }
 
@@ -52,11 +50,11 @@ public struct UserRowView: View {
                             .foregroundStyle(SubTheme.gray)
                             .buttonStyle(.subLink)
                         } else {
-                            Button(isFollowingState ? "unfollow" : "follow") {
+                            Button(member.followed ? "unfollow" : "follow") {
                                 toggleFollow()
                             }
-                            .font(.system(size: 14, weight: isFollowingState ? .regular : .medium))
-                            .foregroundStyle(isFollowingState ? SubTheme.gray : SubTheme.accent)
+                            .font(.system(size: 14, weight: member.followed ? .regular : .medium))
+                            .foregroundStyle(member.followed ? SubTheme.gray : SubTheme.accent)
                             .buttonStyle(.subLink)
                         }
                     }
@@ -136,29 +134,21 @@ public struct UserRowView: View {
             }
         }
         .padding(.vertical, 6)
-        .onAppear {
-            isFollowingState = appState.isFollowing(member.username)
-        }
-        .onChange(of: appState.followedUsernames) { _, _ in
-            isFollowingState = appState.isFollowing(member.username)
-        }
     }
 
     private func toggleFollow() {
-        let target = !isFollowingState
-        isFollowingState = target
-        appState.markFollowing(member.username, following: target)
+        let target = !member.followed
+        let username = member.username
+        member.followed = target
         Task {
             do {
                 let confirmed = try await appState.apiClient.setFollowing(
-                    username: member.username,
+                    username: username,
                     follow: target
                 )
-                isFollowingState = confirmed
-                appState.markFollowing(member.username, following: confirmed)
+                member.followed = confirmed
             } catch {
-                isFollowingState = !target
-                appState.markFollowing(member.username, following: !target)
+                member.followed = !target
             }
         }
     }
@@ -205,7 +195,13 @@ public struct MemberView: View {
                         .foregroundStyle(SubTheme.alert)
                         .padding(.vertical, 12)
                 } else if let member {
-                    UserRowView(member: member, isMemberHeader: true)
+                    UserRowView(
+                        member: Binding(
+                            get: { self.member ?? member },
+                            set: { self.member = $0 }
+                        ),
+                        isMemberHeader: true
+                    )
 
                     let links = member.allLinks
                     if !links.isEmpty {
