@@ -55,14 +55,16 @@ public struct MacreplyApp: App {
                         .keyboardShortcut("5", modifiers: [.command])
                     Button("Profile") { appState.selectSection(.profile) }
                         .keyboardShortcut("6", modifiers: [.command])
+                    Button("Options") { appState.selectSection(.options) }
+                        .keyboardShortcut("7", modifiers: [.command])
                 }
 
                 Button("People") { appState.selectSection(.people) }
-                    .keyboardShortcut("7", modifiers: [.command])
-                Button("Trending") { appState.selectSection(.trending) }
                     .keyboardShortcut("8", modifiers: [.command])
-                Button("Discover") { appState.selectSection(.discover) }
+                Button("Trending") { appState.selectSection(.trending) }
                     .keyboardShortcut("9", modifiers: [.command])
+                Button("Discover") { appState.selectSection(.discover) }
+                    .keyboardShortcut("0", modifiers: [.command])
             }
         }
     }
