@@ -7,6 +7,7 @@ public struct MacreplyApp: App {
 
     public init() {
         NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.applicationIconImage = AppIcon.loadOrRenderImage()
     }
 
     public var body: some Scene {

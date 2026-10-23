@@ -161,4 +161,13 @@ struct MacreplyTests {
         #expect(narrowHeight > wideHeight)
         #expect(narrowHeight < 65)
     }
+
+    @Test("AppIcon renders macOS squircle icon from icon.svg specifications")
+    func testAppIconGeneration() throws {
+        let pngData = try #require(AppIcon.renderPNGData(pixelSize: 256))
+        #expect(!pngData.isEmpty)
+        let image = AppIcon.loadOrRenderImage()
+        #expect(image.size.width > 0)
+        #expect(image.size.height > 0)
+    }
 }
