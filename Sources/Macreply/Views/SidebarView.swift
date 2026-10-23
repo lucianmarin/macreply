@@ -61,6 +61,17 @@ public enum SubTheme {
     public static func maxWindowWidth(isCompact: Bool) -> CGFloat {
         sidebarWidth(isCompact: isCompact) + 1 + (horizontalPadding * 2) + contentWidth
     }
+
+    public static let sidebarTopHeaderHeight: CGFloat = 61.5
+    public static let sidebarBottomPadding: CGFloat = 14.5
+    public static let sidebarRowHeight: CGFloat = 32
+    public static let sidebarRowSpacing: CGFloat = 2
+
+    public static func minWindowHeight(isAuthenticated: Bool) -> CGFloat {
+        let count = CGFloat(SidebarSection.visibleSections(isAuthenticated: isAuthenticated).count)
+        let rowsHeight = (count * sidebarRowHeight) + (max(0, count - 1) * sidebarRowSpacing)
+        return sidebarTopHeaderHeight + rowsHeight + sidebarBottomPadding
+    }
 }
 
 public extension View {
@@ -73,7 +84,7 @@ public extension View {
                 alignment: .leading
             )
             .padding(.horizontal, SubTheme.horizontalPadding)
-            .padding(.top, 8)
+            .padding(.top, 14)
             .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -126,13 +137,15 @@ public extension View {
 /// the standard macOS traffic light controls (center Y = 22.5pt from top) with the top compose field.
 public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
     public let isCompactSidebar: Bool
+    public let minWindowHeight: CGFloat
 
-    public init(isCompactSidebar: Bool = false) {
+    public init(isCompactSidebar: Bool = false, minWindowHeight: CGFloat = SubTheme.minWindowHeight(isAuthenticated: true)) {
         self.isCompactSidebar = isCompactSidebar
+        self.minWindowHeight = minWindowHeight
     }
 
     public func makeCoordinator() -> Coordinator {
-        Coordinator(isCompactSidebar: isCompactSidebar)
+        Coordinator(isCompactSidebar: isCompactSidebar, minWindowHeight: minWindowHeight)
     }
 
     public func makeNSView(context: Context) -> NSView {
@@ -144,7 +157,10 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
     }
 
     public func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.updateSidebarMode(isCompact: isCompactSidebar)
+        context.coordinator.updateConfiguration(
+            isCompact: isCompactSidebar,
+            minWindowHeight: minWindowHeight
+        )
         if let window = nsView.window {
             context.coordinator.attach(to: window)
         }
@@ -169,23 +185,29 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
         private weak var observedWindow: NSWindow?
         private weak var observedContainer: NSView?
         private var isCompactSidebar: Bool
+        private var minWindowHeight: CGFloat
         private var isAdjusting = false
         private nonisolated(unsafe) var observers: [NSObjectProtocol] = []
 
-        public init(isCompactSidebar: Bool) {
+        public init(isCompactSidebar: Bool, minWindowHeight: CGFloat) {
             self.isCompactSidebar = isCompactSidebar
+            self.minWindowHeight = minWindowHeight
         }
 
-        public func updateSidebarMode(isCompact: Bool) {
-            guard isCompactSidebar != isCompact else { return }
+        public func updateConfiguration(isCompact: Bool, minWindowHeight: CGFloat) {
+            let compactChanged = isCompactSidebar != isCompact
+            let heightChanged = abs(self.minWindowHeight - minWindowHeight) > 0.5
+            guard compactChanged || heightChanged else { return }
+
             let previousSidebarWidth = SubTheme.sidebarWidth(isCompact: isCompactSidebar)
             let newSidebarWidth = SubTheme.sidebarWidth(isCompact: isCompact)
-            isCompactSidebar = isCompact
+            self.isCompactSidebar = isCompact
+            self.minWindowHeight = minWindowHeight
 
             guard let window = observedWindow else { return }
             updateWindowSizeLimits(window)
 
-            if !window.styleMask.contains(.fullScreen) {
+            if compactChanged && !window.styleMask.contains(.fullScreen) {
                 var frame = window.frame
                 let delta = newSidebarWidth - previousSidebarWidth
                 let minW = SubTheme.minWindowWidth(isCompact: isCompact)
@@ -257,7 +279,7 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
         private func updateWindowSizeLimits(_ window: NSWindow) {
             let minW = SubTheme.minWindowWidth(isCompact: isCompactSidebar)
             let maxW = SubTheme.maxWindowWidth(isCompact: isCompactSidebar)
-            let minH: CGFloat = 420
+            let minH = minWindowHeight
 
             if window.contentMinSize.width != minW || window.contentMinSize.height != minH {
                 window.contentMinSize = NSSize(width: minW, height: minH)
@@ -269,8 +291,12 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
             if !window.styleMask.contains(.fullScreen) {
                 var frame = window.frame
                 let clampedWidth = min(max(frame.size.width, minW), maxW)
-                if abs(frame.size.width - clampedWidth) > 0.5 {
+                let clampedHeight = max(frame.size.height, minH)
+                if abs(frame.size.width - clampedWidth) > 0.5 || abs(frame.size.height - clampedHeight) > 0.5 {
+                    let heightDelta = clampedHeight - frame.size.height
+                    frame.origin.y -= heightDelta
                     frame.size.width = clampedWidth
+                    frame.size.height = clampedHeight
                     window.setFrame(frame, display: true)
                 }
             }
@@ -290,9 +316,9 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
             isAdjusting = true
             defer { isAdjusting = false }
 
-            // Shift the 32pt titlebar container down by 6.5pt so traffic lights center at Y = 22.5pt from top,
-            // matching the 29pt compose field at top padding 8pt (8 + 14.5 = 22.5pt).
-            let targetContainerY = window.frame.height - container.frame.height - 6.5
+            // Shift the 32pt titlebar container down by 18.5pt so traffic lights center at Y = 34.5pt from top,
+            // matching the 29pt compose field at 20pt top padding (20 + 14.5 = 34.5pt).
+            let targetContainerY = window.frame.height - container.frame.height - 18.5
             if abs(container.frame.origin.y - targetContainerY) > 0.25 || abs(container.frame.origin.x) > 0.25 {
                 container.setFrameOrigin(NSPoint(x: 0, y: targetContainerY))
             }
@@ -590,28 +616,34 @@ public struct SidebarView: View {
         VStack(spacing: 0) {
             // Fake titlebar area holding the macOS window controls (aligned with the compose field)
             FakeTitleBarDragRegion()
-                .frame(height: 45)
+                .frame(height: SubTheme.sidebarTopHeaderHeight)
                 .frame(maxWidth: .infinity)
 
-            ScrollView {
-                VStack(alignment: appState.isCompactSidebar ? .center : .trailing, spacing: 2) {
-                    ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
-                        SidebarRowButton(
-                            section: section,
-                            isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
-                            isCompact: appState.isCompactSidebar,
-                            badgeCount: appState.badgeCount(for: section)
-                        ) {
-                            appState.selectSection(section)
-                        }
+            VStack(alignment: appState.isCompactSidebar ? .center : .trailing, spacing: SubTheme.sidebarRowSpacing) {
+                ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
+                    SidebarRowButton(
+                        section: section,
+                        isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
+                        isCompact: appState.isCompactSidebar,
+                        badgeCount: appState.badgeCount(for: section)
+                    ) {
+                        appState.selectSection(section)
                     }
                 }
-                .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
-                .padding(.top, 0)
-                .padding(.bottom, 12)
             }
+            .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
+            .padding(.bottom, SubTheme.sidebarBottomPadding)
+            .fixedSize(horizontal: false, vertical: true)
+
+            FakeTitleBarDragRegion()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: SubTheme.sidebarWidth(isCompact: appState.isCompactSidebar))
+        .frame(
+            width: SubTheme.sidebarWidth(isCompact: appState.isCompactSidebar)
+        )
+        .frame(
+            minHeight: SubTheme.minWindowHeight(isAuthenticated: appState.isAuthenticated)
+        )
         .ignoresSafeArea(.container, edges: .top)
         .background(
             SidebarVisualEffectView()

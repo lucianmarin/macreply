@@ -268,7 +268,7 @@ public struct InlineParentRowView: View {
             Spacer(minLength: 0)
         }
         .opacity(0.5)
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
     }
 }
 

@@ -87,7 +87,6 @@ public struct ReplyDetailView: View {
 
                     // Reply Input (`templates/input/reply.html`)
                     replyComposerSection(for: entry)
-                        .padding(.top, 4)
 
                     // Descendant Threads (`templates/common/threads.html`)
                     if !kids.isEmpty {

@@ -69,6 +69,7 @@ public struct ComposerView: View {
                     .foregroundStyle(SubTheme.alert)
             }
         }
+        .padding(.top, 6)
         .padding(.bottom, 8)
     }
 
@@ -132,6 +133,7 @@ public struct PlaceholderBannerView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: SubTheme.radius))
         )
+        .padding(.top, 6)
         .padding(.bottom, 8)
     }
 }
@@ -185,6 +187,7 @@ public struct SearchQueryBar: View {
             RoundedRectangle(cornerRadius: SubTheme.radius)
                 .fill(SubTheme.whitesmoke)
         )
+        .padding(.top, 6)
         .padding(.bottom, 8)
     }
 }

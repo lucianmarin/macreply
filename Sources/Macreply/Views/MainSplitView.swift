@@ -42,12 +42,15 @@ public struct MainSplitView: View {
         .frame(
             minWidth: SubTheme.minWindowWidth(isCompact: appState.isCompactSidebar),
             maxWidth: SubTheme.maxWindowWidth(isCompact: appState.isCompactSidebar),
-            minHeight: 420
+            minHeight: SubTheme.minWindowHeight(isAuthenticated: appState.isAuthenticated)
         )
         .ignoresSafeArea(.container, edges: .top)
         .background(
-            FakeTitleBarWindowConfigurator(isCompactSidebar: appState.isCompactSidebar)
-                .frame(width: 0, height: 0)
+            FakeTitleBarWindowConfigurator(
+                isCompactSidebar: appState.isCompactSidebar,
+                minWindowHeight: SubTheme.minWindowHeight(isAuthenticated: appState.isAuthenticated)
+            )
+            .frame(width: 0, height: 0)
         )
     }
 
