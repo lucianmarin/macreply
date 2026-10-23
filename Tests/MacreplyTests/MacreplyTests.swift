@@ -96,4 +96,19 @@ struct MacreplyTests {
         #expect(ContentParser.timeAgo(since: now - 86400 * 3, now: now) == "3d")
         #expect(ContentParser.timeAgo(since: now - 86400 * 14, now: now) == "2w")
     }
+
+    @Test("Feed area resizes from 320px to 640px excluding padding and sidebar")
+    func testFeedAreaResizeBounds() {
+        #expect(SubTheme.minContentWidth == 320)
+        #expect(SubTheme.contentWidth == 640)
+
+        for isCompact in [false, true] {
+            let sidebar = SubTheme.sidebarWidth(isCompact: isCompact)
+            let padding = SubTheme.horizontalPadding * 2
+            let minFeed = SubTheme.minWindowWidth(isCompact: isCompact) - sidebar - 1 - padding
+            let maxFeed = SubTheme.maxWindowWidth(isCompact: isCompact) - sidebar - 1 - padding
+            #expect(minFeed == 320)
+            #expect(maxFeed == 640)
+        }
+    }
 }

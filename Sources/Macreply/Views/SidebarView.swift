@@ -46,7 +46,37 @@ public enum SubTheme {
     public static let gray = Color(white: 0x80 / 255.0)
     public static let indent: CGFloat = 30
     public static let radius: CGFloat = 6
-    public static let contentWidth: CGFloat = 560
+    public static let minContentWidth: CGFloat = 320
+    public static let contentWidth: CGFloat = 640
+    public static let horizontalPadding: CGFloat = 24
+
+    public static func sidebarWidth(isCompact: Bool) -> CGFloat {
+        isCompact ? 78 : 155
+    }
+
+    public static func minWindowWidth(isCompact: Bool) -> CGFloat {
+        sidebarWidth(isCompact: isCompact) + 1 + (horizontalPadding * 2) + minContentWidth
+    }
+
+    public static func maxWindowWidth(isCompact: Bool) -> CGFloat {
+        sidebarWidth(isCompact: isCompact) + 1 + (horizontalPadding * 2) + contentWidth
+    }
+}
+
+public extension View {
+    func subFeedContainer() -> some View {
+        self
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(
+                minWidth: SubTheme.minContentWidth,
+                maxWidth: SubTheme.contentWidth,
+                alignment: .leading
+            )
+            .padding(.horizontal, SubTheme.horizontalPadding)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
 }
 
 public struct SubLinkButtonStyle: ButtonStyle {
@@ -91,13 +121,18 @@ public extension View {
     }
 }
 
-/// Configures the hosting `NSWindow` to hide the native titlebar/toolbar and vertically align
+/// Configures the hosting `NSWindow` to hide the native titlebar/toolbar, constrain the feed area
+/// width between 320px and 640px (excluding padding and sidebar), and vertically align
 /// the standard macOS traffic light controls (center Y = 22.5pt from top) with the top compose field.
 public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
-    public init() {}
+    public let isCompactSidebar: Bool
+
+    public init(isCompactSidebar: Bool = false) {
+        self.isCompactSidebar = isCompactSidebar
+    }
 
     public func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(isCompactSidebar: isCompactSidebar)
     }
 
     public func makeNSView(context: Context) -> NSView {
@@ -109,6 +144,7 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
     }
 
     public func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.updateSidebarMode(isCompact: isCompactSidebar)
         if let window = nsView.window {
             context.coordinator.attach(to: window)
         }
@@ -132,11 +168,36 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
     public final class Coordinator: NSObject {
         private weak var observedWindow: NSWindow?
         private weak var observedContainer: NSView?
+        private var isCompactSidebar: Bool
         private var isAdjusting = false
         private nonisolated(unsafe) var observers: [NSObjectProtocol] = []
 
+        public init(isCompactSidebar: Bool) {
+            self.isCompactSidebar = isCompactSidebar
+        }
+
+        public func updateSidebarMode(isCompact: Bool) {
+            guard isCompactSidebar != isCompact else { return }
+            let previousSidebarWidth = SubTheme.sidebarWidth(isCompact: isCompactSidebar)
+            let newSidebarWidth = SubTheme.sidebarWidth(isCompact: isCompact)
+            isCompactSidebar = isCompact
+
+            guard let window = observedWindow else { return }
+            updateWindowSizeLimits(window)
+
+            if !window.styleMask.contains(.fullScreen) {
+                var frame = window.frame
+                let delta = newSidebarWidth - previousSidebarWidth
+                let minW = SubTheme.minWindowWidth(isCompact: isCompact)
+                let maxW = SubTheme.maxWindowWidth(isCompact: isCompact)
+                frame.size.width = min(max(frame.size.width + delta, minW), maxW)
+                window.setFrame(frame, display: true)
+            }
+        }
+
         public func attach(to window: NSWindow) {
             configureWindow(window)
+            updateWindowSizeLimits(window)
             repositionTrafficLights(in: window)
 
             guard observedWindow !== window else { return }
@@ -158,6 +219,7 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
                     MainActor.assumeIsolated {
                         guard let self, let window else { return }
                         self.configureWindow(window)
+                        self.updateWindowSizeLimits(window)
                         self.repositionTrafficLights(in: window)
                     }
                 }
@@ -190,6 +252,28 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
             window.titlebarSeparatorStyle = .none
             window.styleMask.insert(.fullSizeContentView)
             window.isMovableByWindowBackground = true
+        }
+
+        private func updateWindowSizeLimits(_ window: NSWindow) {
+            let minW = SubTheme.minWindowWidth(isCompact: isCompactSidebar)
+            let maxW = SubTheme.maxWindowWidth(isCompact: isCompactSidebar)
+            let minH: CGFloat = 420
+
+            if window.contentMinSize.width != minW || window.contentMinSize.height != minH {
+                window.contentMinSize = NSSize(width: minW, height: minH)
+            }
+            if window.contentMaxSize.width != maxW {
+                window.contentMaxSize = NSSize(width: maxW, height: .greatestFiniteMagnitude)
+            }
+
+            if !window.styleMask.contains(.fullScreen) {
+                var frame = window.frame
+                let clampedWidth = min(max(frame.size.width, minW), maxW)
+                if abs(frame.size.width - clampedWidth) > 0.5 {
+                    frame.size.width = clampedWidth
+                    window.setFrame(frame, display: true)
+                }
+            }
         }
 
         private func repositionTrafficLights(in window: NSWindow) {
@@ -527,7 +611,7 @@ public struct SidebarView: View {
                 .padding(.bottom, 12)
             }
         }
-        .frame(width: appState.isCompactSidebar ? 78 : 155)
+        .frame(width: SubTheme.sidebarWidth(isCompact: appState.isCompactSidebar))
         .ignoresSafeArea(.container, edges: .top)
         .background(
             SidebarVisualEffectView()

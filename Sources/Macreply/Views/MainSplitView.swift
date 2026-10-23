@@ -32,12 +32,21 @@ public struct MainSplitView: View {
                         .toolbar(.hidden, for: .windowToolbar)
                     }
             }
+            .frame(
+                minWidth: SubTheme.minContentWidth + (SubTheme.horizontalPadding * 2),
+                maxWidth: SubTheme.contentWidth + (SubTheme.horizontalPadding * 2)
+            )
             .ignoresSafeArea(.container, edges: .top)
             .background(SubTheme.background.ignoresSafeArea())
         }
+        .frame(
+            minWidth: SubTheme.minWindowWidth(isCompact: appState.isCompactSidebar),
+            maxWidth: SubTheme.maxWindowWidth(isCompact: appState.isCompactSidebar),
+            minHeight: 420
+        )
         .ignoresSafeArea(.container, edges: .top)
         .background(
-            FakeTitleBarWindowConfigurator()
+            FakeTitleBarWindowConfigurator(isCompactSidebar: appState.isCompactSidebar)
                 .frame(width: 0, height: 0)
         )
     }

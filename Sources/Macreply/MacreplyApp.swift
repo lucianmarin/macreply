@@ -13,10 +13,10 @@ public struct MacreplyApp: App {
         WindowGroup("Macreply") {
             MainSplitView()
                 .environmentObject(appState)
-                .frame(minWidth: 740, minHeight: 460)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 820, height: 640)
+        .windowResizability(.contentSize)
+        .defaultSize(width: 764, height: 640)
         .commands {
             CommandGroup(replacing: .sidebar) {
                 Toggle("Compact sidebar", isOn: $appState.isCompactSidebar)

@@ -78,11 +78,7 @@ public struct MessagesInboxView: View {
                     .padding(.vertical, 6)
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .background(SubTheme.background)
         .task(id: appState.feedRefreshTrigger) {
@@ -271,11 +267,7 @@ public struct ConversationView: View {
                     .padding(.vertical, 6)
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .background(SubTheme.background)
         .task(id: "\(username.lowercased())-\(appState.feedRefreshTrigger.uuidString)") {

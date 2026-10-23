@@ -106,11 +106,7 @@ public struct ReplyDetailView: View {
                     }
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .background(SubTheme.background)
         .task(id: "\(replyID)-\(appState.feedRefreshTrigger.uuidString)") {
@@ -234,11 +230,7 @@ public struct EditEntryView: View {
                     dismiss()
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)

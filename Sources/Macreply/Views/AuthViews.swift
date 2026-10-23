@@ -59,11 +59,7 @@ public struct LoginView: View {
                     .disabled(isSubmitting)
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)
@@ -145,9 +141,9 @@ public struct RegisterView: View {
 
                 HStack(alignment: .top, spacing: 8) {
                     SubFormField(label: "Emoji", required: false, placeholder: ":)", text: $emoji)
-                        .frame(width: 90)
+                        .frame(width: 64)
                     SubFormField(label: "Birthday", required: false, placeholder: "Y-M-D", text: $birthday)
-                        .frame(width: 140)
+                        .frame(width: 108)
                     SubFormField(label: "Location", required: false, placeholder: "City, Country", text: $location)
                 }
                 errorView(keys: ["emoji", "birthday", "location", "general"])
@@ -163,11 +159,7 @@ public struct RegisterView: View {
                     .disabled(isSubmitting)
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)
@@ -288,11 +280,7 @@ public struct AboutView: View {
                     }
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)

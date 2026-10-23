@@ -60,11 +60,7 @@ public struct OptionsView: View {
                     accountSection
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .ignoresSafeArea(.container, edges: .top)
         .background(SubTheme.background)
@@ -114,9 +110,9 @@ public struct OptionsView: View {
 
             HStack(alignment: .top, spacing: 8) {
                 SubFormField(label: "Emoji", required: false, placeholder: ":)", text: $emoji)
-                    .frame(width: 90)
+                    .frame(width: 64)
                 SubFormField(label: "Birthday", required: false, placeholder: "Y-M-D", text: $birthday)
-                    .frame(width: 140)
+                    .frame(width: 108)
                 SubFormField(label: "Location", required: false, placeholder: "City, Country", text: $location)
             }
             errorRows(for: ["emoji", "birthday", "location"], in: profileErrors)
@@ -172,7 +168,7 @@ public struct OptionsView: View {
 
             HStack(alignment: .top, spacing: 8) {
                 SubFormField(label: "Code", required: false, placeholder: "+1", text: $phoneCode)
-                    .frame(width: 85)
+                    .frame(width: 64)
                 SubFormField(label: "Phone number", required: false, text: $phoneNumber)
                 SubFormField(label: "PayPal", required: false, text: $paypal)
             }

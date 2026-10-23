@@ -92,11 +92,7 @@ public struct PeopleListView: View {
                     .padding(.vertical, 6)
                 }
             }
-            .frame(maxWidth: SubTheme.contentWidth, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 14)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .subFeedContainer()
         }
         .background(SubTheme.background)
         .task(id: "\(section.rawValue)-\(appState.feedRefreshTrigger.uuidString)") {
