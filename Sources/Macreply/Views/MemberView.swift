@@ -25,41 +25,42 @@ public struct UserRowView: View {
                 Button {
                     appState.openMember(member.username)
                 } label: {
-                    Text(member.fullName)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.subLink)
-
-                Button {
-                    appState.openMember(member.username)
-                } label: {
-                    Text("@\(member.username)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(SubTheme.gray)
+                    (
+                        Text(member.fullName)
+                            .foregroundStyle(.primary)
+                        + Text(" @\(member.username)")
+                            .foregroundStyle(SubTheme.gray)
+                    )
+                    .font(.system(size: 14, weight: .bold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 }
                 .buttonStyle(.subLink)
 
                 if appState.isAuthenticated {
-                    Text("•")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(SubTheme.gray)
+                    HStack(spacing: 6) {
+                        Text("•")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(SubTheme.gray)
 
-                    if isSelf {
-                        Button("logout") {
-                            appState.logout()
+                        if isSelf {
+                            Button("logout") {
+                                appState.logout()
+                            }
+                            .font(.system(size: 14))
+                            .foregroundStyle(SubTheme.gray)
+                            .buttonStyle(.subLink)
+                        } else {
+                            Button(isFollowingState ? "unfollow" : "follow") {
+                                toggleFollow()
+                            }
+                            .font(.system(size: 14, weight: isFollowingState ? .regular : .medium))
+                            .foregroundStyle(isFollowingState ? SubTheme.gray : SubTheme.accent)
+                            .buttonStyle(.subLink)
                         }
-                        .font(.system(size: 14))
-                        .foregroundStyle(SubTheme.gray)
-                        .buttonStyle(.subLink)
-                    } else {
-                        Button(isFollowingState ? "unfollow" : "follow") {
-                            toggleFollow()
-                        }
-                        .font(.system(size: 14, weight: isFollowingState ? .regular : .medium))
-                        .foregroundStyle(isFollowingState ? SubTheme.gray : SubTheme.accent)
-                        .buttonStyle(.subLink)
                     }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                 }
 
                 Spacer(minLength: 0)
@@ -74,6 +75,8 @@ public struct UserRowView: View {
                                 .foregroundStyle(SubTheme.silver)
                         }
                         .buttonStyle(.subLink)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
                     }
                 } else if member.createdAt > 0 {
                     Button {
@@ -84,6 +87,8 @@ public struct UserRowView: View {
                             .foregroundStyle(SubTheme.silver)
                     }
                     .buttonStyle(.subLink)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                 }
             }
 
