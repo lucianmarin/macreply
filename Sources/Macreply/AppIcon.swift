@@ -81,6 +81,10 @@ public enum AppIcon {
     }
 
     public static func loadOrRenderImage() -> NSImage {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
         if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
            let image = NSImage(contentsOf: url) {
             return image

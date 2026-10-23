@@ -11,7 +11,7 @@ public struct MacreplyApp: App {
     }
 
     public var body: some Scene {
-        WindowGroup("Macreply") {
+        WindowGroup("Subreply") {
             MainSplitView()
                 .environmentObject(appState)
         }
