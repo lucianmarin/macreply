@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Mirrors `templates/common/user.html`
 public struct UserRowView: View {
@@ -209,7 +210,7 @@ public struct MemberView: View {
                     let links = member.allLinks
                     if !links.isEmpty {
                         Divider().overlay(SubTheme.whitesmoke)
-                        memberLinksRow(links: links)
+                        MemberLinksView(links: links)
                     }
 
                     if member.createdAt > 0 {
@@ -264,35 +265,6 @@ public struct MemberView: View {
         }
     }
 
-    private func memberLinksRow(links: [(name: String, url: URL)]) -> some View {
-        HStack(spacing: 0) {
-            Text("Also on ")
-                .font(.system(size: 13))
-                .foregroundStyle(SubTheme.gray)
-
-            ForEach(links.indices, id: \.self) { idx in
-                if idx > 0 {
-                    Text(idx == links.count - 1 ? " and " : ", ")
-                        .font(.system(size: 13))
-                        .foregroundStyle(SubTheme.gray)
-                }
-                Button {
-                    openURL(links[idx].url)
-                } label: {
-                    Text(links[idx].name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(SubTheme.gray)
-                }
-                .buttonStyle(.subLink)
-            }
-
-            Text(".")
-                .font(.system(size: 13))
-                .foregroundStyle(SubTheme.gray)
-        }
-        .padding(.vertical, 6)
-    }
-
     private func loadMember(reset: Bool) async {
         guard !username.isEmpty else { return }
         if reset {
@@ -321,5 +293,156 @@ public struct MemberView: View {
         }
         isLoading = false
         isLoadingMore = false
+    }
+}
+
+public struct MemberLinksView: View {
+    public let links: [(name: String, url: URL)]
+
+    @State private var viewWidth: CGFloat = SubTheme.contentWidth
+    @State private var isHoveringLink: Bool = false
+
+    public init(links: [(name: String, url: URL)]) {
+        self.links = links
+    }
+
+    public var body: some View {
+        let attributed = buildAttributedString()
+        Text(attributed)
+            .font(.system(size: 13))
+            .lineSpacing(3)
+            .lineLimit(nil)
+            .tint(SubTheme.gray)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { viewWidth = geo.size.width }
+                        .onChange(of: geo.size.width) { _, newWidth in
+                            viewWidth = newWidth
+                        }
+                }
+            )
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    let overLink = isLocationOverLink(location, width: viewWidth)
+                    if overLink != isHoveringLink {
+                        isHoveringLink = overLink
+                    }
+                    if overLink {
+                        NSCursor.pointingHand.set()
+                    } else {
+                        NSCursor.arrow.set()
+                    }
+                case .ended:
+                    if isHoveringLink {
+                        isHoveringLink = false
+                        NSCursor.arrow.set()
+                    }
+                }
+            }
+            .modifier(MemberLinkPointerModifier(isLink: isHoveringLink))
+            .padding(.vertical, 6)
+    }
+
+    public func buildAttributedString() -> AttributedString {
+        var attributed = AttributedString("Also on ")
+        attributed.font = .system(size: 13)
+        attributed.foregroundColor = SubTheme.gray
+
+        for idx in links.indices {
+            if idx > 0 {
+                var separator = AttributedString(idx == links.count - 1 ? " and " : ", ")
+                separator.font = .system(size: 13)
+                separator.foregroundColor = SubTheme.gray
+                attributed.append(separator)
+            }
+
+            var linkPart = AttributedString(links[idx].name)
+            linkPart.font = .system(size: 13, weight: .medium)
+            linkPart.foregroundColor = SubTheme.gray
+            linkPart.link = links[idx].url
+            attributed.append(linkPart)
+        }
+
+        var dot = AttributedString(".")
+        dot.font = .system(size: 13)
+        dot.foregroundColor = SubTheme.gray
+        attributed.append(dot)
+
+        return attributed
+    }
+
+    public func isLocationOverLink(_ point: CGPoint, width: CGFloat) -> Bool {
+        guard width > 0, !links.isEmpty else { return false }
+        let nsAttributed = buildNSAttributedString()
+        guard nsAttributed.length > 0 else { return false }
+
+        let textStorage = NSTextStorage(attributedString: nsAttributed)
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+        textContainer.lineFragmentPadding = 0
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.ensureLayout(for: textContainer)
+
+        var fraction: CGFloat = 0
+        let glyphIndex = layoutManager.glyphIndex(
+            for: point,
+            in: textContainer,
+            fractionOfDistanceThroughGlyph: &fraction
+        )
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return false }
+        let glyphRect = layoutManager.boundingRect(
+            forGlyphRange: NSRange(location: glyphIndex, length: 1),
+            in: textContainer
+        )
+        guard glyphRect.insetBy(dx: -2, dy: -2).contains(point) else { return false }
+        let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+        guard charIndex < textStorage.length else { return false }
+        return textStorage.attribute(.link, at: charIndex, effectiveRange: nil) != nil
+    }
+
+    private func buildNSAttributedString() -> NSMutableAttributedString {
+        let regularAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
+        ]
+        let linkAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13, weight: .medium)
+        ]
+
+        let result = NSMutableAttributedString(string: "Also on ", attributes: regularAttrs)
+        for idx in links.indices {
+            if idx > 0 {
+                let sep = idx == links.count - 1 ? " and " : ", "
+                result.append(NSAttributedString(string: sep, attributes: regularAttrs))
+            }
+            var attrs = linkAttrs
+            attrs[.link] = links[idx].url
+            result.append(NSAttributedString(string: links[idx].name, attributes: attrs))
+        }
+        result.append(NSAttributedString(string: ".", attributes: regularAttrs))
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 3
+        result.addAttribute(
+            .paragraphStyle,
+            value: paragraphStyle,
+            range: NSRange(location: 0, length: result.length)
+        )
+        return result
+    }
+}
+
+private struct MemberLinkPointerModifier: ViewModifier {
+    let isLink: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.pointerStyle(isLink ? .link : .default)
+        } else {
+            content
+        }
     }
 }

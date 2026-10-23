@@ -214,8 +214,16 @@ public actor APIClient {
             items.append(URLQueryItem(name: "p", value: String(page)))
         }
         let cleanUsername = username.lowercased()
-        let data = try await performRequest(path: "/\(cleanUsername)", queryItems: items)
-        return try decode(MemberFeedResponse.self, from: data)
+        do {
+            let data = try await performRequest(path: "/\(cleanUsername)", queryItems: items)
+            return try decode(MemberFeedResponse.self, from: data)
+        } catch APIError.unauthorized {
+            let usersResponse = try await fetchUsers(path: "/people", page: 1, query: cleanUsername)
+            guard let matched = usersResponse.entries.first(where: { $0.username.lowercased() == cleanUsername }) else {
+                throw APIError.notFound
+            }
+            return MemberFeedResponse(page: page, member: matched, entries: [])
+        }
     }
 
     public func fetchReplyDetail(id: Int) async throws -> ReplyDetailResponse {

@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import SwiftUI
+import AppKit
 @testable import Macreply
 
 @Suite("Macreply Core Tests")
@@ -114,5 +116,49 @@ struct MacreplyTests {
         #expect(SubTheme.minWindowHeight == 482)
         #expect(SubTheme.minWindowHeight(isAuthenticated: true) == 482)
         #expect(SubTheme.minWindowHeight(isAuthenticated: false) == 482)
+    }
+
+    @MainActor
+    @Test("Member social links for /lucian wrap across multiple lines at 320px width")
+    func testMemberLinksMultilineWrapping() {
+        let lucian = SubUser(
+            username: "lucian",
+            fullName: "🍊 Lucian Marin",
+            firstName: "Lucian",
+            lastName: "Marin",
+            createdAt: 1398381247.156,
+            emoji: ":tangerine:",
+            birthday: "1986-11-26",
+            location: "Bucharest, Romania",
+            link: "https://lucianmarin.com/",
+            description: "Python developer and all things tech.",
+            phone: ["code": "+40", "number": "726210589"],
+            social: [
+                "x": "lucianmarin",
+                "github": "lucianmarin",
+                "paypal": "lucianmarin",
+                "spotify": "lucianmarin",
+                "linkedin": "marinlucian",
+                "instagram": "lucianmarin"
+            ]
+        )
+
+        let links = lucian.allLinks
+        #expect(links.map(\.name) == ["GitHub", "Instagram", "LinkedIn", "PayPal", "Spotify", "Telephone", "X"])
+
+        let view = MemberLinksView(links: links)
+        let plainText = String(view.buildAttributedString().characters)
+        #expect(plainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Spotify, Telephone and X.")
+
+        let wideHost = NSHostingView(rootView: view.frame(width: 640))
+        wideHost.layoutSubtreeIfNeeded()
+        let wideHeight = wideHost.fittingSize.height
+
+        let narrowHost = NSHostingView(rootView: view.frame(width: 320))
+        narrowHost.layoutSubtreeIfNeeded()
+        let narrowHeight = narrowHost.fittingSize.height
+
+        #expect(narrowHeight > wideHeight)
+        #expect(narrowHeight < 65)
     }
 }
