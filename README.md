@@ -1,4 +1,6 @@
-# macreply
+# Macreply
+
+![screenshot](screenshot.png)
 
 Native macOS client for [Subreply](https://subreply.com) (`subreply.com/api`), built with SwiftUI and Swift Package Manager. It follows the same core design principles as the Subreply web application: a distraction-free, text-first interface driven by a **native macOS sidebar** that switches between **native feeds**.
 
@@ -149,4 +151,3 @@ swift test
 # Run the macOS app from terminal
 swift run Macreply
 ```
-
