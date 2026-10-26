@@ -29,6 +29,7 @@ public struct MessagesInboxView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 } else if let errorMessage, chats.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -201,6 +202,7 @@ public struct ConversationView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 } else if let errorMessage, messages.isEmpty {
                     Text(errorMessage)

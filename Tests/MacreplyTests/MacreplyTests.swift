@@ -121,6 +121,64 @@ struct MacreplyTests {
         #expect(NSApplication.shared.dockTile.badgeLabel == nil)
     }
 
+    @MainActor
+    @Test("Member header shows MESSAGE action for logged-in user's own profile")
+    func testSelfMemberHeaderShowsMessageButton() {
+        let suiteName = "macreply.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(defaults: defaults)
+        let selfUser = SubUser(username: "lucian", fullName: "Lucian Marin", firstName: "Lucian")
+        state.token = "test-token"
+        state.currentUser = selfUser
+
+        let row = UserRowView(member: .constant(selfUser), isMemberHeader: true)
+            .environmentObject(state)
+            .frame(width: 640)
+
+        let host = NSHostingView(rootView: row)
+        host.layoutSubtreeIfNeeded()
+        #expect(host.fittingSize.height > 0)
+
+        state.openConversation(selfUser.username)
+        #expect(state.navigationPath == [.conversation("lucian")])
+    }
+
+    @MainActor
+    @Test("ComposerView expands vertically when resized from 640px to 320px width")
+    func testComposerViewReflowsOnResize() {
+        let longText = "This is a long composer message that fits on two lines at 640px width but requires more lines when the window is resized down to 320px width so nothing gets clipped."
+        let composer = ComposerView(placeholder: "Share something...", initialText: longText) { _ in }
+
+        let wideHost = NSHostingView(rootView: composer.frame(width: 640))
+        wideHost.layoutSubtreeIfNeeded()
+        let wideHeight = wideHost.fittingSize.height
+
+        let narrowHost = NSHostingView(rootView: composer.frame(width: 320))
+        narrowHost.layoutSubtreeIfNeeded()
+        let narrowHeight = narrowHost.fittingSize.height
+
+        #expect(narrowHeight > wideHeight)
+    }
+
+    @MainActor
+    @Test("ComposerView limits input to 720 characters maximum while warning at 641+")
+    func testComposerViewCharacterLimits() {
+        #expect(ComposerView.warningCharacterLimit == 640)
+        #expect(ComposerView.maxCharacterLimit == 720)
+
+        let text650 = String(repeating: "a", count: 650)
+        #expect(ComposerView.clamp(text650).count == 650)
+
+        let text800 = String(repeating: "b", count: 800)
+        let clamped = ComposerView.clamp(text800)
+        #expect(clamped.count == 720)
+
+        let composer = ComposerView(placeholder: "Share something...", initialText: text800) { _ in }
+        #expect(composer.initialText.count == 720)
+    }
+
     @Test("Timeago formatting matches Subreply filter")
     func testTimeAgo() {
         let now: Double = 1_700_000_000

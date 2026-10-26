@@ -42,6 +42,7 @@ public struct ReplyDetailView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 } else if let errorMessage, mainEntry == nil {
                     Text(errorMessage)

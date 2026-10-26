@@ -56,6 +56,7 @@ public struct FeedView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 } else if let errorMessage, entries.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {

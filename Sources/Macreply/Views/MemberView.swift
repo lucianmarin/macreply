@@ -65,7 +65,7 @@ public struct UserRowView: View {
                 Spacer(minLength: 0)
 
                 if isMemberHeader {
-                    if appState.isAuthenticated && !isSelf {
+                    if appState.isAuthenticated {
                         Button {
                             appState.openConversation(member.username)
                         } label: {
@@ -188,6 +188,7 @@ public struct MemberView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
                 } else if let errorMessage, member == nil {
                     Text(errorMessage)

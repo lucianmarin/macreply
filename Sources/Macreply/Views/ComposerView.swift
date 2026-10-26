@@ -1,10 +1,15 @@
 import SwiftUI
+import AppKit
 
 /// Single-paragraph auto-expanding composer matching Subreply's `.reply` input rules:
 /// - Disallows newlines (pressing Return submits)
+/// - Caps input at 720 characters maximum
 /// - Highlights background in `--redsmoke` when length exceeds 640 characters
 /// - Displays server validation errors in `--alert` (`#ff4000`)
 public struct ComposerView: View {
+    public static let warningCharacterLimit = 640
+    public static let maxCharacterLimit = 720
+
     public let placeholder: String
     public var initialText: String = ""
     public let onSubmit: (String) async throws -> Void
@@ -12,6 +17,9 @@ public struct ComposerView: View {
     @State private var text: String = ""
     @State private var isSubmitting = false
     @State private var errorMessages: [String] = []
+    @State private var composerHeight: CGFloat = 0
+    @State private var scrollAnchorView: NSView?
+    @FocusState private var isFocused: Bool
 
     public init(
         placeholder: String,
@@ -19,35 +27,59 @@ public struct ComposerView: View {
         onSubmit: @escaping (String) async throws -> Void
     ) {
         self.placeholder = placeholder
-        self.initialText = initialText
+        let clampedInitial = Self.clamp(initialText)
+        self.initialText = clampedInitial
         self.onSubmit = onSubmit
-        self._text = State(initialValue: initialText)
+        self._text = State(initialValue: clampedInitial)
+    }
+
+    public static func clamp(_ input: String) -> String {
+        guard input.count > maxCharacterLimit else { return input }
+        return String(input.prefix(maxCharacterLimit))
     }
 
     private var isOverLimit: Bool {
-        text.count > 640
+        text.count > Self.warningCharacterLimit
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .bottomTrailing) {
+                // Hidden sizing text ensures SwiftUI recalculates multiline height immediately
+                // when the window width changes (macOS TextField(axis: .vertical) caches intrinsic width).
+                Text(text.isEmpty ? placeholder : (text + " "))
+                    .font(.system(size: 14))
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .hidden()
+                    .accessibilityHidden(true)
+
                 TextField(placeholder, text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
-                    .lineLimit(1...8)
+                    .lineLimit(1...24)
+                    .focused($isFocused)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .padding(.trailing, text.isEmpty ? 0 : 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: SubTheme.radius)
-                            .fill(isOverLimit ? SubTheme.redsmoke : SubTheme.whitesmoke)
-                    )
                     .disabled(isSubmitting)
                     .onChange(of: text) { _, newValue in
                         if newValue.contains("\n") {
-                            let sanitized = newValue.replacingOccurrences(of: "\n", with: " ")
+                            let sanitized = Self.clamp(newValue.replacingOccurrences(of: "\n", with: " "))
                             text = sanitized
                             submitIfReady()
+                            return
+                        }
+                        if newValue.count > Self.maxCharacterLimit {
+                            text = Self.clamp(newValue)
+                            return
+                        }
+                        if isFocused {
+                            reflowAndHideInternalTextScrollbars()
+                            scrollComposerIntoView()
                         }
                     }
                     .onSubmit {
@@ -60,8 +92,13 @@ public struct ComposerView: View {
                         .foregroundStyle(isOverLimit ? SubTheme.alert : SubTheme.gray)
                         .padding(.trailing, 8)
                         .padding(.bottom, 6)
+                        .allowsHitTesting(false)
                 }
             }
+            .background(
+                RoundedRectangle(cornerRadius: SubTheme.radius)
+                    .fill(isOverLimit ? SubTheme.redsmoke : SubTheme.whitesmoke)
+            )
 
             ForEach(errorMessages, id: \.self) { err in
                 Text(err)
@@ -71,6 +108,97 @@ public struct ComposerView: View {
         }
         .padding(.top, 6)
         .padding(.bottom, 8)
+        .background(
+            GeometryReader { geo in
+                ComposerScrollAnchorBridge { nsView in
+                    if scrollAnchorView !== nsView {
+                        scrollAnchorView = nsView
+                    }
+                    reflowAndHideInternalTextScrollbars()
+                }
+                .onAppear {
+                    composerHeight = geo.size.height
+                    reflowAndHideInternalTextScrollbars()
+                }
+                .onChange(of: geo.size.width) { _, _ in
+                    reflowAndHideInternalTextScrollbars()
+                    if isFocused {
+                        scrollComposerIntoView()
+                    }
+                }
+                .onChange(of: geo.size.height) { oldHeight, newHeight in
+                    composerHeight = newHeight
+                    reflowAndHideInternalTextScrollbars()
+                    if isFocused && newHeight > oldHeight {
+                        scrollComposerIntoView()
+                    }
+                }
+            }
+        )
+    }
+
+    private func reflowAndHideInternalTextScrollbars() {
+        guard let anchor = scrollAnchorView, let root = anchor.superview?.superview else { return }
+        func configureViews(in view: NSView) {
+            if let sv = view as? NSScrollView {
+                sv.hasVerticalScroller = false
+                sv.hasHorizontalScroller = false
+                sv.verticalScroller?.alphaValue = 0
+                sv.horizontalScroller?.alphaValue = 0
+            }
+            if let tf = view as? NSTextField {
+                tf.preferredMaxLayoutWidth = max(1, tf.bounds.width)
+                tf.invalidateIntrinsicContentSize()
+                if let editor = tf.currentEditor() as? NSTextView {
+                    editor.textContainer?.widthTracksTextView = true
+                    if let tc = editor.textContainer {
+                        editor.layoutManager?.ensureLayout(for: tc)
+                    }
+                }
+            }
+            if let tv = view as? NSTextView {
+                tv.textContainer?.widthTracksTextView = true
+                if let tc = tv.textContainer {
+                    tv.layoutManager?.ensureLayout(for: tc)
+                }
+                tv.needsLayout = true
+            }
+            for sub in view.subviews {
+                configureViews(in: sub)
+            }
+        }
+        configureViews(in: root)
+    }
+
+    private func scrollComposerIntoView() {
+        DispatchQueue.main.async {
+            guard let anchor = scrollAnchorView,
+                  let scrollView = anchor.enclosingScrollView,
+                  let documentView = scrollView.documentView else {
+                return
+            }
+
+            documentView.layoutSubtreeIfNeeded()
+            let rectInDoc = anchor.convert(anchor.bounds, to: documentView).insetBy(dx: 0, dy: -14)
+            let visibleRect = scrollView.contentView.documentVisibleRect
+
+            if rectInDoc.maxY > visibleRect.maxY {
+                var targetOrigin = visibleRect.origin
+                targetOrigin.y += (rectInDoc.maxY - visibleRect.maxY)
+                let maxOffsetY = max(0, documentView.bounds.height - visibleRect.height)
+                targetOrigin.y = min(max(0, targetOrigin.y), maxOffsetY)
+
+                let previousScrollerState = scrollView.hasVerticalScroller
+                scrollView.hasVerticalScroller = false
+                scrollView.verticalScroller?.alphaValue = 0
+                scrollView.contentView.scroll(to: targetOrigin)
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                DispatchQueue.main.async {
+                    scrollView.hasVerticalScroller = previousScrollerState
+                    scrollView.verticalScroller?.alphaValue = 1
+                }
+            }
+        }
     }
 
     private func submitIfReady() {
@@ -95,6 +223,24 @@ public struct ComposerView: View {
                 errorMessages = [error.localizedDescription]
             }
             isSubmitting = false
+        }
+    }
+}
+
+private struct ComposerScrollAnchorBridge: NSViewRepresentable {
+    let onUpdate: (NSView) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            onUpdate(view)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            onUpdate(nsView)
         }
     }
 }
