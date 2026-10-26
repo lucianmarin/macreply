@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 public enum SidebarSection: String, CaseIterable, Identifiable, Hashable, Sendable {
     // Authenticated items
@@ -48,8 +49,8 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Hashable, Sendab
     public var systemImage: String {
         switch self {
         case .feed: return "bolt"
-        case .following: return "arrow.up.right"
-        case .followers: return "arrow.down.right"
+        case .following: return "arrow.turn.left.up"
+        case .followers: return "arrow.turn.right.down"
         case .mentions: return "at"
         case .messages: return "bubble.left"
         case .replies: return "arrowshape.turn.up.left"
@@ -125,7 +126,11 @@ public final class AppState: ObservableObject {
     @Published public var currentEmail: String
     @Published public var token: String?
     @Published public var apiBaseURL: String
-    @Published public var notifications: SubNotifications = SubNotifications()
+    @Published public var notifications: SubNotifications = SubNotifications() {
+        didSet {
+            updateDockBadge()
+        }
+    }
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
     @Published public var feedRefreshTrigger: UUID = UUID()
@@ -171,6 +176,7 @@ public final class AppState: ObservableObject {
         if isAuthenticated {
             startNotificationPolling()
         }
+        updateDockBadge()
     }
 
     public func selectSection(_ section: SidebarSection) {
@@ -290,6 +296,15 @@ public final class AppState: ObservableObject {
         default:
             break
         }
+    }
+
+    public var dockBadgeLabel: String? {
+        let total = notifications.total
+        return total > 0 ? "\(total)" : nil
+    }
+
+    public func updateDockBadge() {
+        NSApplication.shared.dockTile.badgeLabel = dockBadgeLabel
     }
 
     public func badgeCount(for section: SidebarSection) -> Int {

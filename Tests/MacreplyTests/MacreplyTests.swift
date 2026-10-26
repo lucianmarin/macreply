@@ -87,8 +87,38 @@ struct MacreplyTests {
         #expect(authSections.contains(.options))
         #expect(!authSections.contains(.login))
 
+        #expect(SidebarSection.following.systemImage == "arrow.turn.left.up")
+        #expect(SidebarSection.followers.systemImage == "arrow.turn.right.down")
+
         let guestSections = SidebarSection.visibleSections(isAuthenticated: false)
         #expect(guestSections == [.about, .login, .register, .people, .trending, .discover])
+    }
+
+    @MainActor
+    @Test("Dock badge sums all notification counts and clears when zero")
+    func testDockNotificationsBadge() {
+        let suiteName = "macreply.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(defaults: defaults)
+        #expect(state.notifications.total == 0)
+        #expect(state.dockBadgeLabel == nil)
+
+        state.notifications = SubNotifications(followers: 2, mentions: 3, replies: 4, messages: 1)
+        #expect(state.notifications.total == 10)
+        #expect(state.dockBadgeLabel == "10")
+        #expect(NSApplication.shared.dockTile.badgeLabel == "10")
+
+        state.clearNotificationCount(for: .mentions)
+        #expect(state.notifications.total == 7)
+        #expect(state.dockBadgeLabel == "7")
+        #expect(NSApplication.shared.dockTile.badgeLabel == "7")
+
+        state.logout()
+        #expect(state.notifications.total == 0)
+        #expect(state.dockBadgeLabel == nil)
+        #expect(NSApplication.shared.dockTile.badgeLabel == nil)
     }
 
     @Test("Timeago formatting matches Subreply filter")
