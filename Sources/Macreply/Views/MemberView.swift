@@ -65,29 +65,36 @@ public struct UserRowView: View {
                 Spacer(minLength: 0)
 
                 if isMemberHeader {
-                    if appState.isAuthenticated {
-                        Button {
+                    Button {
+                        if appState.isAuthenticated {
                             appState.openConversation(member.username)
+                        } else {
+                            appState.selectSection(.login)
+                        }
+                    } label: {
+                        Text("MESSAGE")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(SubTheme.silver)
+                    }
+                    .buttonStyle(.subLink)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                } else {
+                    let rightDate = !member.timestamp.isEmpty
+                        ? member.timestamp
+                        : (member.createdAt > 0 ? ContentParser.timeAgo(since: member.createdAt) : "")
+                    if !rightDate.isEmpty {
+                        Button {
+                            appState.openMember(member.username)
                         } label: {
-                            Text("MESSAGE")
-                                .font(.system(size: 11, weight: .medium))
+                            Text(rightDate)
+                                .font(.system(size: 13))
                                 .foregroundStyle(SubTheme.silver)
                         }
                         .buttonStyle(.subLink)
                         .fixedSize(horizontal: true, vertical: false)
                         .layoutPriority(1)
                     }
-                } else if member.createdAt > 0 {
-                    Button {
-                        appState.openMember(member.username)
-                    } label: {
-                        Text(ContentParser.timeAgo(since: member.createdAt))
-                            .font(.system(size: 13))
-                            .foregroundStyle(SubTheme.silver)
-                    }
-                    .buttonStyle(.subLink)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .layoutPriority(1)
                 }
             }
 
@@ -212,7 +219,7 @@ public struct MemberView: View {
 
                     if member.createdAt > 0 {
                         Divider().overlay(SubTheme.whitesmoke)
-                        Text("Joined \(ContentParser.timeAgo(since: member.createdAt)) ago.")
+                        Text(memberStatusLine(for: member))
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.gray)
                             .padding(.vertical, 6)
@@ -260,6 +267,26 @@ public struct MemberView: View {
         .task(id: "\(username.lowercased())-\(appState.feedRefreshTrigger.uuidString)") {
             await loadMember(reset: true)
         }
+    }
+
+    private func memberStatusLine(for member: SubUser) -> String {
+        var parts: [String] = [
+            "Joined \(ContentParser.timeAgo(since: member.createdAt)) ago."
+        ]
+        if member.seenAt > 0 && member.seenAt != member.createdAt {
+            parts.append("Seen \(ContentParser.timeAgo(since: member.seenAt)) ago.")
+        }
+        if member.donated > 0 {
+            let formattedDonated = member.donated.truncatingRemainder(dividingBy: 1) == 0
+                ? String(format: "%.1f", member.donated)
+                : String(member.donated)
+            parts.append("Donated $\(formattedDonated).")
+        }
+        let isSelf = appState.currentUser?.username.lowercased() == member.username.lowercased()
+        if member.follows && !isSelf {
+            parts.append("Follows you.")
+        }
+        return parts.joined(separator: " ")
     }
 
     private func loadMember(reset: Bool) async {

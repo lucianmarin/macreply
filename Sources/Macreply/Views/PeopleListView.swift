@@ -27,7 +27,7 @@ public struct PeopleListView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if section == .people {
                     SearchQueryBar(
-                        placeholder: "Find people by name, @username, city or bio...",
+                        placeholder: "Find people",
                         query: $searchQuery
                     ) {
                         appState.peopleSearchQuery = searchQuery

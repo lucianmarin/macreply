@@ -8,6 +8,7 @@ public struct ReplyDetailView: View {
     @State private var ancestors: [SubEntry] = []
     @State private var mainEntry: SubEntry?
     @State private var kids: [SubEntry] = []
+    @State private var duplicateFromServer: Bool?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -23,9 +24,12 @@ public struct ReplyDetailView: View {
         return current == author
     }
 
-    private var existingUserReply: SubEntry? {
-        guard let current = appState.currentUser?.username.lowercased() else { return nil }
-        return kids.first { $0.createdBy.username.lowercased() == current }
+    private var hasDuplicateReply: Bool {
+        if let duplicateFromServer {
+            return duplicateFromServer
+        }
+        guard let current = appState.currentUser?.username.lowercased() else { return false }
+        return kids.contains { $0.createdBy.username.lowercased() == current }
     }
 
     public var body: some View {
@@ -119,17 +123,18 @@ public struct ReplyDetailView: View {
         if !appState.isAuthenticated {
             PlaceholderBannerView(
                 text: "your account to reply",
-                actionLabel: "Login"
-            ) {
-                appState.selectSection(.login)
-            }
+                actionLabel: "Login",
+                onAction: { appState.selectSection(.login) },
+                secondaryActionLabel: "register",
+                onSecondaryAction: { appState.selectSection(.register) }
+            )
         } else if isOwnEntry {
             PlaceholderBannerView(
-                text: kids.isEmpty ? "No reply yet" : "Reply back to them"
+                text: entry.replyCount == 0 && kids.isEmpty ? "No reply yet" : "Reply back to them"
             )
-        } else if let duplicate = existingUserReply {
+        } else if hasDuplicateReply {
             PlaceholderBannerView(
-                text: "Share reply #\(duplicate.id) anywhere"
+                text: "Share reply #\(entry.id) anywhere"
             )
         } else {
             ComposerView(placeholder: "Reply to @\(entry.createdBy.username)") { content in
@@ -138,10 +143,12 @@ public struct ReplyDetailView: View {
                     content: content
                 )
                 kids.insert(created, at: 0)
+                duplicateFromServer = true
                 if var currentMain = mainEntry {
                     var currentKids = currentMain.kids ?? []
                     currentKids.insert(created, at: 0)
                     currentMain.kids = currentKids
+                    currentMain.replies = max((currentMain.replies ?? 0) + 1, currentKids.count)
                     mainEntry = currentMain
                 }
             }
@@ -154,6 +161,7 @@ public struct ReplyDetailView: View {
         do {
             let response = try await appState.apiClient.fetchReplyDetail(id: replyID)
             ancestors = response.ancestors
+            duplicateFromServer = response.duplicate
             var hydratedEntry = response.entry
             if hydratedEntry.kids == nil {
                 hydratedEntry.kids = response.kids
@@ -215,7 +223,24 @@ public struct EditEntryView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                EntryItemView(entry: $entry)
+                if var parent = entry.parent {
+                    EntryItemView(
+                        entry: Binding(
+                            get: { entry.parent ?? parent },
+                            set: { updated in
+                                parent = updated
+                                entry.parent = updated
+                            }
+                        ),
+                        isRootOverride: parent.parent == nil
+                    )
+                    Divider().overlay(SubTheme.whitesmoke)
+                }
+
+                EntryItemView(
+                    entry: $entry,
+                    isRootOverride: entry.parent == nil
+                )
 
                 ComposerView(
                     placeholder: "Edit content",

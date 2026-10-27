@@ -129,6 +129,13 @@ private struct MessageInboxRow: View {
                 .foregroundStyle(SubTheme.gray)
                 .buttonStyle(.subLink)
 
+                Button(chat.seen ? "read" : "unread") {
+                    appState.openConversation(chat.createdBy.username)
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(SubTheme.silver)
+                .buttonStyle(.subLink)
+
                 Spacer(minLength: 0)
 
                 Button {
@@ -151,6 +158,7 @@ public struct ConversationView: View {
     public let username: String
 
     @State private var messages: [SubChat] = []
+    @State private var isBlockedFromServer: Bool?
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = true
@@ -166,6 +174,9 @@ public struct ConversationView: View {
     }
 
     private var isBlockedWaitingForResponse: Bool {
+        if let isBlockedFromServer {
+            return isBlockedFromServer
+        }
         guard let current = appState.currentUser?.username.lowercased(), !messages.isEmpty else {
             return false
         }
@@ -190,6 +201,11 @@ public struct ConversationView: View {
                             content: content
                         )
                         messages.insert(sent, at: 0)
+                        if let current = appState.currentUser?.username.lowercased(),
+                           current != username.lowercased() {
+                            let hasBackward = messages.contains { $0.createdBy.username.lowercased() == username.lowercased() }
+                            isBlockedFromServer = !hasBackward
+                        }
                         clearStatus = nil
                     }
                 }
@@ -295,6 +311,9 @@ public struct ConversationView: View {
             } else {
                 messages.append(contentsOf: response.entries)
             }
+            if let blocked = response.blocked {
+                isBlockedFromServer = blocked
+            }
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
             await appState.refreshNotifications()
@@ -347,6 +366,10 @@ private struct ConversationMessageRow: View {
 
             if isOutgoing {
                 HStack(spacing: 10) {
+                    Text(chat.seen ? "read" : "unread")
+                        .font(.system(size: 13))
+                        .foregroundStyle(SubTheme.silver)
+
                     if isUnsent {
                         Text("unsent")
                             .font(.system(size: 13))

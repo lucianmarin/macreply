@@ -26,21 +26,22 @@ public struct FeedView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if section == .feed {
                     if appState.isAuthenticated {
-                        ComposerView(placeholder: "Share something...") { content in
+                        ComposerView(placeholder: "Say something") { content in
                             let created = try await appState.apiClient.createThread(content: content)
                             entries.insert(created, at: 0)
                         }
                     } else {
                         PlaceholderBannerView(
                             text: "your account to share",
-                            actionLabel: "Login"
-                        ) {
-                            appState.selectSection(.login)
-                        }
+                            actionLabel: "Login",
+                            onAction: { appState.selectSection(.login) },
+                            secondaryActionLabel: "register",
+                            onSecondaryAction: { appState.selectSection(.register) }
+                        )
                     }
                 } else if section == .discover {
                     SearchQueryBar(
-                        placeholder: "Search posts, #hashtags or @mentions...",
+                        placeholder: "Search content",
                         query: $searchQuery
                     ) {
                         appState.discoverSearchQuery = searchQuery

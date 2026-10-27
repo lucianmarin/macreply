@@ -235,6 +235,7 @@ private struct ConditionalLinkPointerModifier: ViewModifier {
     }
 }
 
+/// Mirrors `templates/common/inline.html`
 public struct InlineParentRowView: View {
     @EnvironmentObject private var appState: AppState
     public let entry: SubEntry
@@ -244,29 +245,13 @@ public struct InlineParentRowView: View {
     }
 
     public var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Button {
-                appState.openMember(entry.createdBy.username)
-            } label: {
-                Text(entry.createdBy.fullName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.primary)
-            }
-            .buttonStyle(.subLink)
-
-            Button {
-                appState.openReply(entry.id)
-            } label: {
-                Text(entry.content)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .buttonStyle(.subLink)
-
-            Spacer(minLength: 0)
-        }
+        RichContentView(
+            author: entry.createdBy,
+            content: entry.content,
+            fontSize: 14,
+            singleLine: true
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(0.5)
         .padding(.vertical, 6)
     }
@@ -392,7 +377,7 @@ public struct EntryItemView: View {
                 Button {
                     appState.openReply(entry.id)
                 } label: {
-                    Text(entry.timestamp)
+                    Text(entry.edited ? "··· \(entry.timestamp)" : entry.timestamp)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.silver)
                 }

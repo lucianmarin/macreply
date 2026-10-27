@@ -249,17 +249,36 @@ public struct PlaceholderBannerView: View {
     public let text: String
     public var actionLabel: String? = nil
     public var onAction: (() -> Void)? = nil
+    public var secondaryActionLabel: String? = nil
+    public var onSecondaryAction: (() -> Void)? = nil
 
-    public init(text: String, actionLabel: String? = nil, onAction: (() -> Void)? = nil) {
+    public init(
+        text: String,
+        actionLabel: String? = nil,
+        onAction: (() -> Void)? = nil,
+        secondaryActionLabel: String? = nil,
+        onSecondaryAction: (() -> Void)? = nil
+    ) {
         self.text = text
         self.actionLabel = actionLabel
         self.onAction = onAction
+        self.secondaryActionLabel = secondaryActionLabel
+        self.onSecondaryAction = onSecondaryAction
     }
 
     public var body: some View {
         HStack(spacing: 4) {
             if let actionLabel, let onAction {
                 Button(actionLabel, action: onAction)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .buttonStyle(.subLink)
+            }
+            if let secondaryActionLabel, let onSecondaryAction {
+                Text("or")
+                    .font(.system(size: 14))
+                    .foregroundStyle(SubTheme.gray)
+                Button(secondaryActionLabel, action: onSecondaryAction)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.primary)
                     .buttonStyle(.subLink)

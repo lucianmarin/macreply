@@ -48,10 +48,12 @@ struct MacreplyTests {
                         "social": {"github": "lucianmarin", "x": "lucianmarin"}
                     },
                     "saved": true,
+                    "edited": true,
+                    "replies": 8,
                     "timestamp": "10m",
                     "parent": null,
                     "kids": [
-                        {"id": 106, "content": "Kid 6", "created_by": {"username": "u6", "full_name": "U6"}, "saved": false, "timestamp": "1m"},
+                        {"id": 106, "content": "Kid 6", "created_by": {"username": "u6", "full_name": "U6"}, "saved": false, "replies": 2, "timestamp": "1m"},
                         {"id": 105, "content": "Kid 5", "created_by": {"username": "u5", "full_name": "U5"}, "saved": false, "timestamp": "2m"},
                         {"id": 104, "content": "Kid 4", "created_by": {"username": "u4", "full_name": "U4"}, "saved": false, "timestamp": "3m"},
                         {"id": 103, "content": "Kid 3", "created_by": {"username": "u3", "full_name": "U3"}, "saved": false, "timestamp": "4m"},
@@ -69,10 +71,13 @@ struct MacreplyTests {
 
         let entry = decoded.entries[0]
         #expect(entry.createdBy.followed == true)
+        #expect(entry.edited == true)
         #expect(entry.hasExplicitNullParent == true)
         #expect(entry.parent == nil)
-        #expect(entry.replyCount == 6)
-        #expect(entry.replyLabel == "6 replies")
+        #expect(entry.replyCount == 8)
+        #expect(entry.replyLabel == "8 replies")
+        #expect(entry.kids?[0].replyCount == 2)
+        #expect(entry.kids?[0].replyLabel == "2 replies")
         #expect(entry.streamKids.map(\.id) == [102, 103, 104, 105, 106])
         #expect(entry.createdBy.cityLabel == "Bucharest")
         #expect(entry.createdBy.allLinks.map(\.name) == ["GitHub", "Telephone", "X"])
