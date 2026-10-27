@@ -107,6 +107,7 @@ The sidebar mirrors `templates/sidebar.html` from the Subreply web app and polls
 
 ```text
 macreply/
+├── Makefile
 ├── Package.swift
 ├── README.md
 ├── Sources/
@@ -140,6 +141,15 @@ macreply/
 ---
 
 ## 6. Building & Running
+
+Build and bundle `Subreply.app`:
+
+```bash
+make app
+open Subreply.app
+```
+
+Or run directly with Swift Package Manager:
 
 ```bash
 # Build the app
