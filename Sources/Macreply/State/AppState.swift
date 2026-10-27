@@ -168,7 +168,7 @@ public final class AppState: ObservableObject {
         self.apiBaseURL = APIClient.normalizeBaseURL(savedBaseURL)
         self.token = savedToken
         self.currentUser = savedUser
-        self.currentEmail = savedEmail
+        self.currentEmail = !(savedUser?.email.isEmpty ?? true) ? (savedUser?.email ?? "") : savedEmail
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
@@ -223,7 +223,9 @@ public final class AppState: ObservableObject {
     public func applyAuthSession(token: String, user: SubUser, email: String? = nil) {
         self.token = token
         self.currentUser = user
-        if let email, !email.isEmpty {
+        if !user.email.isEmpty {
+            self.currentEmail = user.email
+        } else if let email, !email.isEmpty {
             self.currentEmail = email
         }
         persistSession()
@@ -238,7 +240,9 @@ public final class AppState: ObservableObject {
 
     public func updateCurrentUser(_ user: SubUser, email: String? = nil) {
         self.currentUser = user
-        if let email, !email.isEmpty {
+        if !user.email.isEmpty {
+            self.currentEmail = user.email
+        } else if let email, !email.isEmpty {
             self.currentEmail = email
         }
         persistSession()

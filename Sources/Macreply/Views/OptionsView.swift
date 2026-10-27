@@ -66,6 +66,7 @@ public struct OptionsView: View {
         .background(SubTheme.background)
         .onAppear {
             populateFromCurrentUser()
+            Task { await refreshCurrentUserDetails() }
         }
     }
 
@@ -251,7 +252,7 @@ public struct OptionsView: View {
 
     private func populateFromCurrentUser() {
         serverURL = appState.apiBaseURL
-        email = appState.currentEmail
+        email = appState.currentUser?.email.isEmpty == false ? (appState.currentUser?.email ?? "") : appState.currentEmail
         guard let user = appState.currentUser else { return }
         username = user.username
         firstName = user.firstName
@@ -271,6 +272,16 @@ public struct OptionsView: View {
         xHandle = user.social["x"] ?? ""
         phoneCode = user.phone["code"] ?? ""
         phoneNumber = user.phone["number"] ?? ""
+    }
+
+    private func refreshCurrentUserDetails() async {
+        guard let currentUsername = appState.currentUser?.username, !currentUsername.isEmpty else { return }
+        if let latestUser = try? await appState.apiClient.fetchMemberDetail(username: currentUsername) {
+            appState.updateCurrentUser(latestUser)
+            if email.isEmpty && !latestUser.email.isEmpty {
+                email = latestUser.email
+            }
+        }
     }
 
     private func saveProfile() async {

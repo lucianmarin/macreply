@@ -4,6 +4,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var id: String { username }
     public var followed: Bool
     public var username: String
+    public var email: String
     public var fullName: String
     public var firstName: String
     public var lastName: String
@@ -19,6 +20,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case followed
         case username
+        case email
         case fullName = "full_name"
         case firstName = "first_name"
         case lastName = "last_name"
@@ -35,6 +37,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public init(
         followed: Bool = false,
         username: String,
+        email: String = "",
         fullName: String,
         firstName: String,
         lastName: String = "",
@@ -49,6 +52,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     ) {
         self.followed = followed
         self.username = username
+        self.email = email
         self.fullName = fullName
         self.firstName = firstName
         self.lastName = lastName
@@ -66,6 +70,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.followed = try container.decodeIfPresent(Bool.self, forKey: .followed) ?? false
         self.username = try container.decode(String.self, forKey: .username)
+        self.email = try container.decodeIfPresent(String.self, forKey: .email) ?? ""
         self.fullName = try container.decodeIfPresent(String.self, forKey: .fullName) ?? username
         self.firstName = try container.decodeIfPresent(String.self, forKey: .firstName) ?? ""
         self.lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? ""
@@ -319,6 +324,10 @@ public struct PaginatedUsersResponse: Codable, Sendable {
 public struct PaginatedChatsResponse: Codable, Sendable {
     public let page: Int
     public let entries: [SubChat]
+}
+
+public struct MemberResponse: Codable, Sendable {
+    public let member: SubUser
 }
 
 public struct MemberFeedResponse: Codable, Sendable {

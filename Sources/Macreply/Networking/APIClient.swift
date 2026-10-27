@@ -208,22 +208,29 @@ public actor APIClient {
         return try decode(PaginatedUsersResponse.self, from: data)
     }
 
-    public func fetchMember(username: String, page: Int = 1) async throws -> MemberFeedResponse {
+    public func fetchMemberDetail(username: String) async throws -> SubUser {
+        let cleanUsername = username.lowercased()
+        let data = try await performRequest(path: "/\(cleanUsername)")
+        let response = try decode(MemberResponse.self, from: data)
+        return response.member
+    }
+
+    public func fetchMemberPosts(username: String, page: Int = 1) async throws -> PaginatedEntriesResponse {
         var items: [URLQueryItem] = []
         if page > 1 {
             items.append(URLQueryItem(name: "p", value: String(page)))
         }
         let cleanUsername = username.lowercased()
-        do {
-            let data = try await performRequest(path: "/\(cleanUsername)", queryItems: items)
-            return try decode(MemberFeedResponse.self, from: data)
-        } catch APIError.unauthorized {
-            let usersResponse = try await fetchUsers(path: "/people", page: 1, query: cleanUsername)
-            guard let matched = usersResponse.entries.first(where: { $0.username.lowercased() == cleanUsername }) else {
-                throw APIError.notFound
-            }
-            return MemberFeedResponse(page: page, member: matched, entries: [])
-        }
+        let data = try await performRequest(path: "/\(cleanUsername)/posts", queryItems: items)
+        return try decode(PaginatedEntriesResponse.self, from: data)
+    }
+
+    public func fetchMember(username: String, page: Int = 1) async throws -> MemberFeedResponse {
+        let cleanUsername = username.lowercased()
+        async let memberTask = fetchMemberDetail(username: cleanUsername)
+        async let postsTask = fetchMemberPosts(username: cleanUsername, page: page)
+        let (member, postsResponse) = try await (memberTask, postsTask)
+        return MemberFeedResponse(page: postsResponse.page, member: member, entries: postsResponse.entries)
     }
 
     public func fetchReplyDetail(id: Int) async throws -> ReplyDetailResponse {

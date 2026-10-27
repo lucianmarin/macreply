@@ -273,18 +273,29 @@ public struct MemberView: View {
 
         let targetPage = reset ? 1 : currentPage + 1
         do {
-            let response = try await appState.apiClient.fetchMember(
-                username: username,
-                page: targetPage
-            )
-            member = response.member
-            if reset {
+            if reset || member == nil {
+                let response = try await appState.apiClient.fetchMember(
+                    username: username,
+                    page: targetPage
+                )
+                member = response.member
+                if let current = appState.currentUser?.username.lowercased(),
+                   current == response.member.username.lowercased(),
+                   !response.member.email.isEmpty {
+                    appState.updateCurrentUser(response.member, email: response.member.email)
+                }
                 entries = response.entries
+                currentPage = response.page
+                canLoadMore = response.entries.count == pageSize
             } else {
+                let response = try await appState.apiClient.fetchMemberPosts(
+                    username: username,
+                    page: targetPage
+                )
                 entries.append(contentsOf: response.entries)
+                currentPage = response.page
+                canLoadMore = response.entries.count == pageSize
             }
-            currentPage = response.page
-            canLoadMore = response.entries.count == pageSize
         } catch {
             errorMessage = error.localizedDescription
         }

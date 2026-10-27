@@ -260,4 +260,39 @@ struct MacreplyTests {
         #expect(image.size.width > 0)
         #expect(image.size.height > 0)
     }
+
+    @Test("Decodes MemberResponse with optional email when member is req.user")
+    func testMemberResponseDecodingWithEmail() throws {
+        let selfJson = """
+        {
+            "member": {
+                "followed": true,
+                "username": "lucian",
+                "email": "lucian@subreply.com",
+                "full_name": "🍊 Lucian Marin",
+                "first_name": "Lucian",
+                "last_name": "Marin"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let decodedSelf = try JSONDecoder().decode(MemberResponse.self, from: selfJson)
+        #expect(decodedSelf.member.username == "lucian")
+        #expect(decodedSelf.member.email == "lucian@subreply.com")
+
+        let otherJson = """
+        {
+            "member": {
+                "followed": false,
+                "username": "subreply",
+                "full_name": "Subreply",
+                "first_name": "Subreply"
+            }
+        }
+        """.data(using: .utf8)!
+
+        let decodedOther = try JSONDecoder().decode(MemberResponse.self, from: otherJson)
+        #expect(decodedOther.member.username == "subreply")
+        #expect(decodedOther.member.email == "")
+    }
 }
