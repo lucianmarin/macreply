@@ -50,8 +50,8 @@ public enum SidebarSection: String, CaseIterable, Identifiable, Hashable, Sendab
     public var systemImage: String {
         switch self {
         case .feed: return "bolt"
-        case .following: return "arrow.turn.left.up"
-        case .followers: return "arrow.turn.right.down"
+        case .following: return "text.insert"
+        case .followers: return "text.append"
         case .mentions: return "at"
         case .messages: return "bubble.left"
         case .replies: return "arrowshape.turn.up.left"

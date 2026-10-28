@@ -92,8 +92,9 @@ struct MacreplyTests {
         #expect(authSections.contains(.options))
         #expect(!authSections.contains(.login))
 
-        #expect(SidebarSection.following.systemImage == "arrow.turn.left.up")
-        #expect(SidebarSection.followers.systemImage == "arrow.turn.right.down")
+        #expect(SidebarSection.following.systemImage == "text.insert")
+        #expect(SidebarSection.followers.systemImage == "text.append")
+        #expect(SidebarSection.messages.systemImage == "bubble.left")
 
         let guestSections = SidebarSection.visibleSections(isAuthenticated: false)
         #expect(guestSections == [.about, .login, .register, .people, .trending, .discover])
