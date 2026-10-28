@@ -109,6 +109,11 @@ struct MacreplyTests {
         let state = AppState(defaults: defaults)
         #expect(state.notifications.total == 0)
         #expect(state.dockBadgeLabel == nil)
+        #expect(state.notificationPollingMinutes == 2)
+
+        state.updateNotificationPollingMinutes(5)
+        #expect(state.notificationPollingMinutes == 5)
+        #expect(defaults.integer(forKey: "macreply.config.notificationPollingMinutes") == 5)
 
         state.notifications = SubNotifications(followers: 2, mentions: 3, replies: 4, messages: 1)
         #expect(state.notifications.total == 10)

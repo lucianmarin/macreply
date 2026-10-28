@@ -43,6 +43,8 @@ public struct OptionsView: View {
     // Account / Server config
     @State private var serverURL: String = ""
     @State private var serverSavedNotice: Bool = false
+    @State private var pollingMinutesText: String = "2"
+    @State private var pollingSavedNotice: Bool = false
 
     public init() {}
 
@@ -66,7 +68,6 @@ public struct OptionsView: View {
         .background(SubTheme.background)
         .onAppear {
             populateFromCurrentUser()
-            Task { await refreshCurrentUserDetails() }
         }
     }
 
@@ -78,6 +79,7 @@ public struct OptionsView: View {
                     profileStatus = nil
                     detailsStatus = nil
                     serverSavedNotice = false
+                    pollingSavedNotice = false
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tab.rawValue)
@@ -221,6 +223,29 @@ public struct OptionsView: View {
 
             Divider().overlay(SubTheme.whitesmoke)
 
+            SubFormField(
+                label: "Notifications polling (minutes)",
+                required: false,
+                placeholder: "2",
+                text: $pollingMinutesText
+            ) {
+                saveNotificationPolling()
+            }
+
+            HStack {
+                if pollingSavedNotice {
+                    Text("Saved polling interval.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(SubTheme.gray)
+                }
+                Spacer()
+                SubSubmitButton(title: "Save Interval") {
+                    saveNotificationPolling()
+                }
+            }
+
+            Divider().overlay(SubTheme.whitesmoke)
+
             if appState.isAuthenticated {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -252,6 +277,7 @@ public struct OptionsView: View {
 
     private func populateFromCurrentUser() {
         serverURL = appState.apiBaseURL
+        pollingMinutesText = String(appState.notificationPollingMinutes)
         email = appState.currentUser?.email.isEmpty == false ? (appState.currentUser?.email ?? "") : appState.currentEmail
         guard let user = appState.currentUser else { return }
         username = user.username
@@ -274,14 +300,12 @@ public struct OptionsView: View {
         phoneNumber = user.phone["number"] ?? ""
     }
 
-    private func refreshCurrentUserDetails() async {
-        guard let currentUsername = appState.currentUser?.username, !currentUsername.isEmpty else { return }
-        if let latestUser = try? await appState.apiClient.fetchMemberDetail(username: currentUsername) {
-            appState.updateCurrentUser(latestUser)
-            if email.isEmpty && !latestUser.email.isEmpty {
-                email = latestUser.email
-            }
-        }
+    private func saveNotificationPolling() {
+        let trimmed = pollingMinutesText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed = Int(trimmed) ?? 2
+        appState.updateNotificationPollingMinutes(parsed)
+        pollingMinutesText = String(appState.notificationPollingMinutes)
+        pollingSavedNotice = true
     }
 
     private func saveProfile() async {

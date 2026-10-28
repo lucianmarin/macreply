@@ -134,13 +134,15 @@ public final class AppState: ObservableObject {
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
     @Published public var feedRefreshTrigger: UUID = UUID()
+    @Published public var notificationPollingMinutes: Int
     @Published public var isCompactSidebar: Bool {
         didSet {
-            UserDefaults.standard.set(isCompactSidebar, forKey: StorageKeys.compactSidebar)
+            defaults.set(isCompactSidebar, forKey: StorageKeys.compactSidebar)
         }
     }
 
     public let apiClient: APIClient
+    private let defaults: UserDefaults
     private var notificationTask: Task<Void, Never>?
 
     private enum StorageKeys {
@@ -148,6 +150,7 @@ public final class AppState: ObservableObject {
         static let userJSON = "macreply.auth.user"
         static let email = "macreply.auth.email"
         static let apiBaseURL = "macreply.config.apiBaseURL"
+        static let notificationPollingMinutes = "macreply.config.notificationPollingMinutes"
         static let compactSidebar = "macreply.ui.compactSidebar"
     }
 
@@ -156,9 +159,11 @@ public final class AppState: ObservableObject {
     }
 
     public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         let savedBaseURL = defaults.string(forKey: StorageKeys.apiBaseURL) ?? "https://subreply.com/api"
         let savedToken = defaults.string(forKey: StorageKeys.token)
         let savedEmail = defaults.string(forKey: StorageKeys.email) ?? ""
+        let savedPolling = defaults.integer(forKey: StorageKeys.notificationPollingMinutes)
 
         var savedUser: SubUser?
         if let userData = defaults.data(forKey: StorageKeys.userJSON) {
@@ -169,6 +174,7 @@ public final class AppState: ObservableObject {
         self.token = savedToken
         self.currentUser = savedUser
         self.currentEmail = !(savedUser?.email.isEmpty ?? true) ? (savedUser?.email ?? "") : savedEmail
+        self.notificationPollingMinutes = savedPolling > 0 ? savedPolling : 2
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
@@ -251,13 +257,22 @@ public final class AppState: ObservableObject {
     public func updateAPIBaseURL(_ newURL: String) {
         let normalized = APIClient.normalizeBaseURL(newURL)
         self.apiBaseURL = normalized
-        UserDefaults.standard.set(normalized, forKey: StorageKeys.apiBaseURL)
+        defaults.set(normalized, forKey: StorageKeys.apiBaseURL)
         Task {
             await apiClient.setConfiguration(baseURLString: normalized, token: token)
             if isAuthenticated {
                 await refreshNotifications()
             }
             feedRefreshTrigger = UUID()
+        }
+    }
+
+    public func updateNotificationPollingMinutes(_ minutes: Int) {
+        let clamped = max(1, minutes)
+        self.notificationPollingMinutes = clamped
+        defaults.set(clamped, forKey: StorageKeys.notificationPollingMinutes)
+        if isAuthenticated {
+            startNotificationPolling()
         }
     }
 
@@ -327,13 +342,13 @@ public final class AppState: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refreshNotifications()
-                try? await Task.sleep(for: .seconds(45))
+                let intervalSeconds = max(1, self.notificationPollingMinutes) * 60
+                try? await Task.sleep(for: .seconds(intervalSeconds))
             }
         }
     }
 
     private func persistSession() {
-        let defaults = UserDefaults.standard
         if let token {
             defaults.set(token, forKey: StorageKeys.token)
         } else {

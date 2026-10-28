@@ -171,7 +171,8 @@ public struct MemberView: View {
     @State private var entries: [SubEntry] = []
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
-    @State private var isLoading: Bool = true
+    @State private var isLoadingDetails: Bool = true
+    @State private var isLoadingPosts: Bool = true
     @State private var isLoadingMore: Bool = false
     @State private var errorMessage: String?
 
@@ -187,7 +188,7 @@ public struct MemberView: View {
             await appState.refreshNotifications()
         } content: {
             VStack(alignment: .leading, spacing: 0) {
-                if isLoading && member == nil {
+                if isLoadingDetails && member == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -225,7 +226,24 @@ public struct MemberView: View {
                             .padding(.vertical, 6)
                     }
 
-                    if entries.isEmpty && !isLoading {
+                    if isLoadingPosts && entries.isEmpty {
+                        Divider().overlay(SubTheme.whitesmoke)
+                        HStack {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Loading posts...")
+                                .font(.system(size: 13))
+                                .foregroundStyle(SubTheme.gray)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 16)
+                    } else if let errorMessage, entries.isEmpty {
+                        Divider().overlay(SubTheme.whitesmoke)
+                        Text(errorMessage)
+                            .font(.system(size: 13))
+                            .foregroundStyle(SubTheme.alert)
+                            .padding(.vertical, 12)
+                    } else if entries.isEmpty && !isLoadingPosts {
                         Divider().overlay(SubTheme.whitesmoke)
                         Text("Uh, nothing here yet.")
                             .font(.system(size: 14))
@@ -291,30 +309,45 @@ public struct MemberView: View {
 
     private func loadMember(reset: Bool) async {
         guard !username.isEmpty else { return }
-        if reset {
-            isLoading = true
-            errorMessage = nil
-        } else {
-            isLoadingMore = true
-        }
-
         let targetPage = reset ? 1 : currentPage + 1
-        do {
-            if reset || member == nil {
-                let response = try await appState.apiClient.fetchMember(
+
+        if reset || member == nil {
+            if member?.username.lowercased() != username.lowercased() {
+                member = nil
+                entries = []
+                canLoadMore = false
+            }
+            errorMessage = nil
+            isLoadingDetails = true
+            isLoadingPosts = true
+
+            do {
+                let fetchedMember = try await appState.apiClient.fetchMemberDetail(username: username)
+                member = fetchedMember
+                isLoadingDetails = false
+
+                if let current = appState.currentUser?.username.lowercased(),
+                   current == fetchedMember.username.lowercased(),
+                   !fetchedMember.email.isEmpty {
+                    appState.updateCurrentUser(fetchedMember, email: fetchedMember.email)
+                }
+
+                let postsResponse = try await appState.apiClient.fetchMemberPosts(
                     username: username,
                     page: targetPage
                 )
-                member = response.member
-                if let current = appState.currentUser?.username.lowercased(),
-                   current == response.member.username.lowercased(),
-                   !response.member.email.isEmpty {
-                    appState.updateCurrentUser(response.member, email: response.member.email)
-                }
-                entries = response.entries
-                currentPage = response.page
-                canLoadMore = response.entries.count == pageSize
-            } else {
+                entries = postsResponse.entries
+                currentPage = postsResponse.page
+                canLoadMore = postsResponse.entries.count == pageSize
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+
+            isLoadingDetails = false
+            isLoadingPosts = false
+        } else {
+            isLoadingMore = true
+            do {
                 let response = try await appState.apiClient.fetchMemberPosts(
                     username: username,
                     page: targetPage
@@ -322,12 +355,11 @@ public struct MemberView: View {
                 entries.append(contentsOf: response.entries)
                 currentPage = response.page
                 canLoadMore = response.entries.count == pageSize
+            } catch {
+                errorMessage = error.localizedDescription
             }
-        } catch {
-            errorMessage = error.localizedDescription
+            isLoadingMore = false
         }
-        isLoading = false
-        isLoadingMore = false
     }
 }
 
