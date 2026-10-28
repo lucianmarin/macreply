@@ -119,16 +119,86 @@ struct MacreplyTests {
         #expect(state.notifications.total == 10)
         #expect(state.dockBadgeLabel == "10")
         #expect(NSApplication.shared.dockTile.badgeLabel == "10")
+        #expect(state.deliveredNotificationMessages == [
+            "Reply received",
+            "Message received",
+            "Follower received",
+            "Mention received"
+        ])
 
+        // Polling with unchanged counts does not emit duplicate native notifications
+        state.notifications = SubNotifications(followers: 2, mentions: 3, replies: 4, messages: 1)
+        #expect(state.deliveredNotificationMessages.count == 4)
+
+        // Clearing a section count does not emit notifications
         state.clearNotificationCount(for: .mentions)
         #expect(state.notifications.total == 7)
         #expect(state.dockBadgeLabel == "7")
         #expect(NSApplication.shared.dockTile.badgeLabel == "7")
+        #expect(state.deliveredNotificationMessages.count == 4)
+
+        // Incrementing only replies emits only "Reply received"
+        state.notifications = SubNotifications(followers: 2, mentions: 0, replies: 5, messages: 1)
+        #expect(state.deliveredNotificationMessages.last == "Reply received")
+        #expect(state.deliveredNotificationMessages.count == 5)
+
+        // Persists notifications across app restarts when authenticated and avoids re-notifying unchanged counts
+        let selfUser = SubUser(username: "lucian", fullName: "Lucian Marin", firstName: "Lucian")
+        state.applyAuthSession(token: "test-token", user: selfUser)
+        state.notifications = SubNotifications(followers: 2, mentions: 0, replies: 5, messages: 1)
+
+        let restartedState = AppState(defaults: defaults)
+        #expect(restartedState.notifications == SubNotifications(followers: 2, mentions: 0, replies: 5, messages: 1))
+        #expect(restartedState.deliveredNotificationMessages.isEmpty)
+
+        restartedState.notifications = SubNotifications(followers: 2, mentions: 0, replies: 5, messages: 1)
+        #expect(restartedState.deliveredNotificationMessages.isEmpty)
 
         state.logout()
         #expect(state.notifications.total == 0)
         #expect(state.dockBadgeLabel == nil)
         #expect(NSApplication.shared.dockTile.badgeLabel == nil)
+        #expect(state.deliveredNotificationMessages.isEmpty)
+    }
+
+    @MainActor
+    @Test("Changing views triggers notification refresh when authenticated")
+    func testViewChangesRefreshNotifications() async throws {
+        let suiteName = "macreply.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(defaults: defaults)
+        state.token = "test-token"
+        state.currentUser = SubUser(username: "lucian", fullName: "Lucian Marin", firstName: "Lucian")
+        let initialCount = state.notificationRefreshCount
+
+        state.selectSection(.mentions)
+        try await Task.sleep(for: .milliseconds(20))
+        let afterSectionSelect = state.notificationRefreshCount
+        #expect(afterSectionSelect > initialCount)
+
+        state.openReply(42)
+        try await Task.sleep(for: .milliseconds(20))
+        let afterOpenReply = state.notificationRefreshCount
+        #expect(afterOpenReply > afterSectionSelect)
+
+        state.openMember("subreply")
+        try await Task.sleep(for: .milliseconds(20))
+        let afterOpenMember = state.notificationRefreshCount
+        #expect(afterOpenMember > afterOpenReply)
+
+        state.navigationPath.removeLast()
+        try await Task.sleep(for: .milliseconds(20))
+        let afterBack = state.notificationRefreshCount
+        #expect(afterBack > afterOpenMember)
+
+        // Clicking the already-active section in the sidebar triggers a content reload and notification refresh
+        let previousRefreshTrigger = state.feedRefreshTrigger
+        state.selectSection(.mentions)
+        #expect(state.feedRefreshTrigger != previousRefreshTrigger)
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(state.notificationRefreshCount > afterBack)
     }
 
     @MainActor

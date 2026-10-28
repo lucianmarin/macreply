@@ -69,6 +69,9 @@ public struct OptionsView: View {
         .onAppear {
             populateFromCurrentUser()
         }
+        .onChange(of: appState.feedRefreshTrigger) { _, _ in
+            populateFromCurrentUser()
+        }
     }
 
     private var menuHeader: some View {
@@ -80,6 +83,7 @@ public struct OptionsView: View {
                     detailsStatus = nil
                     serverSavedNotice = false
                     pollingSavedNotice = false
+                    appState.refreshNotificationsOnViewChange()
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tab.rawValue)

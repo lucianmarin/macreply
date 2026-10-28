@@ -147,6 +147,7 @@ public struct FeedView: View {
             canLoadMore = response.entries.count == pageSize
             if section == .mentions || section == .replies {
                 appState.clearNotificationCount(for: section)
+                await appState.refreshNotifications()
             }
         } catch {
             errorMessage = error.localizedDescription

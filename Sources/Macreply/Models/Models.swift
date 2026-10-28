@@ -353,6 +353,23 @@ public struct SubNotifications: Codable, Equatable, Sendable {
         guard value > 0 else { return "" }
         return value > 99 ? "99+" : "\(value)"
     }
+
+    public func newNotifications(since previous: SubNotifications) -> [(section: SidebarSection, message: String)] {
+        var alerts: [(section: SidebarSection, message: String)] = []
+        if replies > previous.replies {
+            alerts.append((.replies, "Reply received"))
+        }
+        if messages > previous.messages {
+            alerts.append((.messages, "Message received"))
+        }
+        if followers > previous.followers {
+            alerts.append((.followers, "Follower received"))
+        }
+        if mentions > previous.mentions {
+            alerts.append((.mentions, "Mention received"))
+        }
+        return alerts
+    }
 }
 
 // MARK: - API Responses

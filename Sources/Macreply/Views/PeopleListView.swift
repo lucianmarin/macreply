@@ -132,6 +132,7 @@ public struct PeopleListView: View {
 
             if section == .followers {
                 appState.clearNotificationCount(for: .followers)
+                await appState.refreshNotifications()
             }
         } catch {
             errorMessage = error.localizedDescription

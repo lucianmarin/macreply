@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import UserNotifications
 
 public enum SidebarSection: String, CaseIterable, Identifiable, Hashable, Sendable {
     // Authenticated items
@@ -120,17 +121,32 @@ public enum NavigationDestination: Hashable, Sendable {
 
 @MainActor
 public final class AppState: ObservableObject {
-    @Published public var selectedSection: SidebarSection
-    @Published public var navigationPath: [NavigationDestination] = []
+    @Published public var selectedSection: SidebarSection {
+        didSet {
+            if selectedSection != oldValue {
+                refreshNotificationsOnViewChange()
+            }
+        }
+    }
+    @Published public var navigationPath: [NavigationDestination] = [] {
+        didSet {
+            if navigationPath != oldValue {
+                refreshNotificationsOnViewChange()
+            }
+        }
+    }
     @Published public var currentUser: SubUser?
     @Published public var currentEmail: String
     @Published public var token: String?
     @Published public var apiBaseURL: String
     @Published public var notifications: SubNotifications = SubNotifications() {
         didSet {
+            persistNotifications()
             updateDockBadge()
+            deliverNewNotifications(from: oldValue, to: notifications)
         }
     }
+    @Published public private(set) var deliveredNotificationMessages: [String] = []
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
     @Published public var feedRefreshTrigger: UUID = UUID()
@@ -144,11 +160,16 @@ public final class AppState: ObservableObject {
     public let apiClient: APIClient
     private let defaults: UserDefaults
     private var notificationTask: Task<Void, Never>?
+    private var viewChangeNotificationTask: Task<Void, Never>?
+    private var notificationDelegate: NotificationCenterDelegate?
+    public var notificationSender: (@MainActor (SidebarSection, String) -> Void)?
+    @Published public private(set) var notificationRefreshCount: Int = 0
 
     private enum StorageKeys {
         static let token = "macreply.auth.token"
         static let userJSON = "macreply.auth.user"
         static let email = "macreply.auth.email"
+        static let notifications = "macreply.auth.notifications"
         static let apiBaseURL = "macreply.config.apiBaseURL"
         static let notificationPollingMinutes = "macreply.config.notificationPollingMinutes"
         static let compactSidebar = "macreply.ui.compactSidebar"
@@ -170,15 +191,24 @@ public final class AppState: ObservableObject {
             savedUser = try? JSONDecoder().decode(SubUser.self, from: userData)
         }
 
+        var savedNotifications = SubNotifications()
+        if savedToken != nil, savedUser != nil,
+           let notificationsData = defaults.data(forKey: StorageKeys.notifications),
+           let decodedNotifications = try? JSONDecoder().decode(SubNotifications.self, from: notificationsData) {
+            savedNotifications = decodedNotifications
+        }
+
         self.apiBaseURL = APIClient.normalizeBaseURL(savedBaseURL)
         self.token = savedToken
         self.currentUser = savedUser
         self.currentEmail = !(savedUser?.email.isEmpty ?? true) ? (savedUser?.email ?? "") : savedEmail
+        self.notifications = savedNotifications
         self.notificationPollingMinutes = savedPolling > 0 ? savedPolling : 2
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
 
+        configureUserNotificationsIfAvailable()
         if isAuthenticated {
             startNotificationPolling()
         }
@@ -186,14 +216,22 @@ public final class AppState: ObservableObject {
     }
 
     public func selectSection(_ section: SidebarSection) {
+        let wasSameSection = selectedSection == section
+        let wasSameView = navigationPath.isEmpty && wasSameSection
         navigationPath.removeAll()
         selectedSection = section
+        if wasSameSection {
+            feedRefreshTrigger = UUID()
+        }
+        if wasSameView {
+            refreshNotificationsOnViewChange()
+        }
     }
 
     public func openMember(_ username: String) {
         let clean = username.lowercased()
         if let current = currentUser?.username.lowercased(), clean == current, navigationPath.isEmpty {
-            selectedSection = .profile
+            selectSection(.profile)
             return
         }
         navigationPath.append(.member(clean))
@@ -214,16 +252,24 @@ public final class AppState: ObservableObject {
     public func openHashtag(_ tag: String) {
         let formatted = tag.hasPrefix("#") ? tag : "#\(tag)"
         discoverSearchQuery = formatted
+        let wasSameView = navigationPath.isEmpty && selectedSection == .discover
         navigationPath.removeAll()
         selectedSection = .discover
         feedRefreshTrigger = UUID()
+        if wasSameView {
+            refreshNotificationsOnViewChange()
+        }
     }
 
     public func openLocationSearch(_ city: String) {
         peopleSearchQuery = city
+        let wasSameView = navigationPath.isEmpty && selectedSection == .people
         navigationPath.removeAll()
         selectedSection = .people
         feedRefreshTrigger = UUID()
+        if wasSameView {
+            refreshNotificationsOnViewChange()
+        }
     }
 
     public func applyAuthSession(token: String, user: SubUser, email: String? = nil) {
@@ -279,9 +325,12 @@ public final class AppState: ObservableObject {
     public func logout() {
         notificationTask?.cancel()
         notificationTask = nil
+        viewChangeNotificationTask?.cancel()
+        viewChangeNotificationTask = nil
         token = nil
         currentUser = nil
         notifications = SubNotifications()
+        deliveredNotificationMessages.removeAll()
         persistSession()
         Task {
             await apiClient.setConfiguration(baseURLString: apiBaseURL, token: nil)
@@ -292,17 +341,30 @@ public final class AppState: ObservableObject {
 
     public func refreshNotifications() async {
         guard isAuthenticated else { return }
+        notificationRefreshCount += 1
         do {
             let latest = try await apiClient.fetchNotifications()
+            guard !Task.isCancelled, isAuthenticated else { return }
             self.notifications = latest
         } catch APIError.unauthorized {
+            guard !Task.isCancelled else { return }
             logout()
         } catch {
             // Keep existing counts on transient network error
         }
     }
 
+    public func refreshNotificationsOnViewChange() {
+        guard isAuthenticated else { return }
+        viewChangeNotificationTask?.cancel()
+        viewChangeNotificationTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
+            await self?.refreshNotifications()
+        }
+    }
+
     public func clearNotificationCount(for section: SidebarSection) {
+        viewChangeNotificationTask?.cancel()
         switch section {
         case .followers:
             notifications.followers = 0
@@ -338,6 +400,7 @@ public final class AppState: ObservableObject {
 
     private func startNotificationPolling() {
         notificationTask?.cancel()
+        requestUserNotificationAuthorizationIfAvailable()
         notificationTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -345,6 +408,60 @@ public final class AppState: ObservableObject {
                 let intervalSeconds = max(1, self.notificationPollingMinutes) * 60
                 try? await Task.sleep(for: .seconds(intervalSeconds))
             }
+        }
+    }
+
+    private static var canUseUserNotifications: Bool {
+        Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
+    }
+
+    private func configureUserNotificationsIfAvailable() {
+        guard Self.canUseUserNotifications else { return }
+        let delegate = NotificationCenterDelegate { [weak self] section in
+            Task { @MainActor [weak self] in
+                guard let self, self.isAuthenticated else { return }
+                self.selectSection(section)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
+        self.notificationDelegate = delegate
+        UNUserNotificationCenter.current().delegate = delegate
+    }
+
+    private func requestUserNotificationAuthorizationIfAvailable() {
+        guard Self.canUseUserNotifications else { return }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    }
+
+    private func deliverNewNotifications(from previous: SubNotifications, to current: SubNotifications) {
+        let alerts = current.newNotifications(since: previous)
+        guard !alerts.isEmpty else { return }
+
+        for alert in alerts {
+            deliveredNotificationMessages.append(alert.message)
+            if let notificationSender {
+                notificationSender(alert.section, alert.message)
+            } else {
+                sendNativeNotification(section: alert.section, message: alert.message)
+            }
+        }
+    }
+
+    private func sendNativeNotification(section: SidebarSection, message: String) {
+        guard Self.canUseUserNotifications else { return }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.body = message
+            content.sound = .default
+            content.userInfo = ["section": section.rawValue]
+
+            let request = UNNotificationRequest(
+                identifier: "macreply.\(section.rawValue).\(UUID().uuidString)",
+                content: content,
+                trigger: nil
+            )
+            UNUserNotificationCenter.current().add(request)
         }
     }
 
@@ -360,5 +477,42 @@ public final class AppState: ObservableObject {
             defaults.removeObject(forKey: StorageKeys.userJSON)
         }
         defaults.set(currentEmail, forKey: StorageKeys.email)
+        persistNotifications()
+    }
+
+    private func persistNotifications() {
+        guard isAuthenticated, let data = try? JSONEncoder().encode(notifications) else {
+            defaults.removeObject(forKey: StorageKeys.notifications)
+            return
+        }
+        defaults.set(data, forKey: StorageKeys.notifications)
+    }
+}
+
+private final class NotificationCenterDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
+    private let onSelectSection: @Sendable (SidebarSection) -> Void
+
+    init(onSelectSection: @escaping @Sendable (SidebarSection) -> Void) {
+        self.onSelectSection = onSelectSection
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .list])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let rawSection = response.notification.request.content.userInfo["section"] as? String,
+           let section = SidebarSection(rawValue: rawSection) {
+            onSelectSection(section)
+        }
+        completionHandler()
     }
 }
