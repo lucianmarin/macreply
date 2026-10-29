@@ -1,17 +1,5 @@
-<svg width="384" height="384" viewBox="0 0 384 384" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="384" height="384" fill="#FF4000"/>
-<g filter="url(#filter0_d_4003_7)">
-<path d="M215.426 169.403C212.646 166.62 212.302 162.229 214.614 159.047L260.076 96.4716C265.219 89.3922 256.893 80.3787 249.429 84.9451L127.925 159.274C123.511 161.975 122.783 168.092 126.44 171.753L169.24 214.597C172.02 217.38 172.365 221.771 170.053 224.953L124.591 287.528C119.448 294.608 127.774 303.621 135.238 299.055L256.741 224.726C261.155 222.025 261.883 215.908 258.226 212.247L215.426 169.403Z" fill="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke="white"/>
-</g>
-<defs>
-<filter id="filter0_d_4003_7" x="120.983" y="81.6907" width="154.701" height="232.619" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-<feOffset dx="12" dy="12"/>
-<feComposite in2="hardAlpha" operator="out"/>
-<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0"/>
-<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_4003_7"/>
-<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_4003_7" result="shape"/>
-</filter>
-</defs>
+<svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="600" height="600" fill="#2EB8B8"/>
+<path d="M240 249.271C240 243.589 243.21 238.395 248.292 235.854L458.292 130.854C468.265 125.867 480 133.12 480 144.271V230.729C480 236.411 476.79 241.605 471.708 244.146L261.708 349.146C251.735 354.133 240 346.88 240 335.729V249.271Z" fill="#1F4D7A"/>
+<path d="M120 369.271C120 363.589 123.21 358.395 128.292 355.854L338.292 250.854C348.265 245.867 360 253.12 360 264.271V350.729C360 356.411 356.79 361.605 351.708 364.146L141.708 469.146C131.735 474.133 120 466.88 120 455.729V369.271Z" fill="white"/>
 </svg>

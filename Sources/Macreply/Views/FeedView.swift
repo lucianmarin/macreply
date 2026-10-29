@@ -26,7 +26,10 @@ public struct FeedView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if section == .feed {
                     if appState.isAuthenticated {
-                        ComposerView(placeholder: "Say something") { content in
+                        ComposerView(
+                            placeholder: "Say something",
+                            focusTrigger: appState.feedRefreshTrigger
+                        ) { content in
                             let created = try await appState.apiClient.createThread(content: content)
                             entries.insert(created, at: 0)
                         }
@@ -42,7 +45,8 @@ public struct FeedView: View {
                 } else if section == .discover {
                     SearchQueryBar(
                         placeholder: "Search content",
-                        query: $searchQuery
+                        query: $searchQuery,
+                        focusTrigger: appState.feedRefreshTrigger
                     ) {
                         appState.discoverSearchQuery = searchQuery
                         Task { await loadFeed(reset: true) }

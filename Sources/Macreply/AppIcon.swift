@@ -3,45 +3,64 @@ import AppKit
 import CoreGraphics
 
 public enum AppIcon {
-    public static func boltCGPath() -> CGPath {
+    public static func upperTileCGPath() -> CGPath {
         let path = CGMutablePath()
-        path.move(to: CGPoint(x: 215.426, y: 169.403))
+        path.move(to: CGPoint(x: 240, y: 249.271))
         path.addCurve(
-            to: CGPoint(x: 214.614, y: 159.047),
-            control1: CGPoint(x: 212.646, y: 166.62),
-            control2: CGPoint(x: 212.302, y: 162.229)
+            to: CGPoint(x: 248.292, y: 235.854),
+            control1: CGPoint(x: 240, y: 243.589),
+            control2: CGPoint(x: 243.21, y: 238.395)
         )
-        path.addLine(to: CGPoint(x: 260.076, y: 96.4716))
+        path.addLine(to: CGPoint(x: 458.292, y: 130.854))
         path.addCurve(
-            to: CGPoint(x: 249.429, y: 84.9451),
-            control1: CGPoint(x: 265.219, y: 89.3922),
-            control2: CGPoint(x: 256.893, y: 80.3787)
+            to: CGPoint(x: 480, y: 144.271),
+            control1: CGPoint(x: 468.265, y: 125.867),
+            control2: CGPoint(x: 480, y: 133.12)
         )
-        path.addLine(to: CGPoint(x: 127.925, y: 159.274))
+        path.addLine(to: CGPoint(x: 480, y: 230.729))
         path.addCurve(
-            to: CGPoint(x: 126.44, y: 171.753),
-            control1: CGPoint(x: 123.511, y: 161.975),
-            control2: CGPoint(x: 122.783, y: 168.092)
+            to: CGPoint(x: 471.708, y: 244.146),
+            control1: CGPoint(x: 480, y: 236.411),
+            control2: CGPoint(x: 476.79, y: 241.605)
         )
-        path.addLine(to: CGPoint(x: 169.24, y: 214.597))
+        path.addLine(to: CGPoint(x: 261.708, y: 349.146))
         path.addCurve(
-            to: CGPoint(x: 170.053, y: 224.953),
-            control1: CGPoint(x: 172.02, y: 217.38),
-            control2: CGPoint(x: 172.365, y: 221.771)
+            to: CGPoint(x: 240, y: 335.729),
+            control1: CGPoint(x: 251.735, y: 354.133),
+            control2: CGPoint(x: 240, y: 346.88)
         )
-        path.addLine(to: CGPoint(x: 124.591, y: 287.528))
+        path.addLine(to: CGPoint(x: 240, y: 249.271))
+        path.closeSubpath()
+        return path
+    }
+
+    public static func lowerTileCGPath() -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 120, y: 369.271))
         path.addCurve(
-            to: CGPoint(x: 135.238, y: 299.055),
-            control1: CGPoint(x: 119.448, y: 294.608),
-            control2: CGPoint(x: 127.774, y: 303.621)
+            to: CGPoint(x: 128.292, y: 355.854),
+            control1: CGPoint(x: 120, y: 363.589),
+            control2: CGPoint(x: 123.21, y: 358.395)
         )
-        path.addLine(to: CGPoint(x: 256.741, y: 224.726))
+        path.addLine(to: CGPoint(x: 338.292, y: 250.854))
         path.addCurve(
-            to: CGPoint(x: 258.226, y: 212.247),
-            control1: CGPoint(x: 261.155, y: 222.025),
-            control2: CGPoint(x: 261.883, y: 215.908)
+            to: CGPoint(x: 360, y: 264.271),
+            control1: CGPoint(x: 348.265, y: 245.867),
+            control2: CGPoint(x: 360, y: 253.12)
         )
-        path.addLine(to: CGPoint(x: 215.426, y: 169.403))
+        path.addLine(to: CGPoint(x: 360, y: 350.729))
+        path.addCurve(
+            to: CGPoint(x: 351.708, y: 364.146),
+            control1: CGPoint(x: 360, y: 356.411),
+            control2: CGPoint(x: 356.79, y: 361.605)
+        )
+        path.addLine(to: CGPoint(x: 141.708, y: 469.146))
+        path.addCurve(
+            to: CGPoint(x: 120, y: 455.729),
+            control1: CGPoint(x: 131.735, y: 474.133),
+            control2: CGPoint(x: 120, y: 466.88)
+        )
+        path.addLine(to: CGPoint(x: 120, y: 369.271))
         path.closeSubpath()
         return path
     }
@@ -119,6 +138,10 @@ public enum AppIcon {
         let scale = size / 1024.0
 
         ctx.saveGState()
+        ctx.setAllowsAntialiasing(true)
+        ctx.setShouldAntialias(true)
+        ctx.interpolationQuality = .high
+
         // Flip vertically so (0, 0) is top-left matching SVG coordinates
         ctx.translateBy(x: 0, y: size)
         ctx.scaleBy(x: scale, y: -scale)
@@ -131,8 +154,8 @@ public enum AppIcon {
             style: .continuous
         ).cgPath
 
-        let orange = CGColor(srgbRed: 1.0, green: 0x40 / 255.0, blue: 0.0, alpha: 1.0)
-        let black = CGColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
+        let teal = CGColor(srgbRed: 0x2E / 255.0, green: 0xB8 / 255.0, blue: 0xB8 / 255.0, alpha: 1.0)
+        let navy = CGColor(srgbRed: 0x1F / 255.0, green: 0x4D / 255.0, blue: 0x7A / 255.0, alpha: 1.0)
         let white = CGColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
 
         // Outer macOS icon drop shadow
@@ -143,7 +166,7 @@ public enum AppIcon {
             color: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.28)
         )
         ctx.addPath(squirclePath)
-        ctx.setFillColor(orange)
+        ctx.setFillColor(teal)
         ctx.fillPath()
         ctx.restoreGState()
 
@@ -152,36 +175,23 @@ public enum AppIcon {
         ctx.addPath(squirclePath)
         ctx.clip()
 
-        ctx.setFillColor(orange)
+        ctx.setFillColor(teal)
         ctx.fill(iconRect)
 
-        // Map 384x384 SVG viewBox into 824x824 squircle
+        // Map 600x600 SVG viewBox into 824x824 squircle
         ctx.translateBy(x: iconRect.minX, y: iconRect.minY)
-        let svgScale: CGFloat = 824.0 / 384.0
+        let svgScale: CGFloat = 824.0 / 600.0
         ctx.scaleBy(x: svgScale, y: svgScale)
 
-        let bolt = boltCGPath()
+        // Upper tile (fill="#1F4D7A")
+        ctx.addPath(upperTileCGPath())
+        ctx.setFillColor(navy)
+        ctx.fillPath()
 
-        // Hard offset drop shadow (dx=12, dy=12 in 384x384 SVG coordinates)
-        ctx.saveGState()
-        ctx.translateBy(x: 12, y: 12)
-        ctx.addPath(bolt)
-        ctx.setFillColor(black)
-        ctx.setStrokeColor(black)
-        ctx.setLineWidth(4)
-        ctx.setLineCap(.round)
-        ctx.setLineJoin(.round)
-        ctx.drawPath(using: .fillStroke)
-        ctx.restoreGState()
-
-        // White lightning bolt (fill="white" stroke="white" stroke-width="4")
-        ctx.addPath(bolt)
+        // Lower tile (fill="white")
+        ctx.addPath(lowerTileCGPath())
         ctx.setFillColor(white)
-        ctx.setStrokeColor(white)
-        ctx.setLineWidth(4)
-        ctx.setLineCap(.round)
-        ctx.setLineJoin(.round)
-        ctx.drawPath(using: .fillStroke)
+        ctx.fillPath()
 
         ctx.restoreGState()
         ctx.restoreGState()

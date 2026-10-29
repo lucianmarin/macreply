@@ -5,13 +5,14 @@ import AppKit
 /// - Disallows newlines (pressing Return submits)
 /// - Caps input at 720 characters maximum
 /// - Highlights background in `--redsmoke` when length exceeds 640 characters
-/// - Displays server validation errors in `--alert` (`#ff4000`)
+/// - Displays server validation errors in `--alert` (`#ff4500`)
 public struct ComposerView: View {
     public static let warningCharacterLimit = 640
     public static let maxCharacterLimit = 720
 
     public let placeholder: String
     public var initialText: String = ""
+    public var focusTrigger: UUID = UUID()
     public let onSubmit: (String) async throws -> Void
 
     @State private var text: String = ""
@@ -24,11 +25,13 @@ public struct ComposerView: View {
     public init(
         placeholder: String,
         initialText: String = "",
+        focusTrigger: UUID = UUID(),
         onSubmit: @escaping (String) async throws -> Void
     ) {
         self.placeholder = placeholder
         let clampedInitial = Self.clamp(initialText)
         self.initialText = clampedInitial
+        self.focusTrigger = focusTrigger
         self.onSubmit = onSubmit
         self._text = State(initialValue: clampedInitial)
     }
@@ -108,6 +111,15 @@ public struct ComposerView: View {
         }
         .padding(.top, 6)
         .padding(.bottom, 8)
+        .onAppear {
+            requestFocus()
+        }
+        .onChange(of: placeholder) { _, _ in
+            requestFocus()
+        }
+        .onChange(of: focusTrigger) { _, _ in
+            requestFocus()
+        }
         .background(
             GeometryReader { geo in
                 ComposerScrollAnchorBridge { nsView in
@@ -223,6 +235,14 @@ public struct ComposerView: View {
                 errorMessages = [error.localizedDescription]
             }
             isSubmitting = false
+            requestFocus()
+        }
+    }
+
+    private func requestFocus() {
+        isFocused = true
+        DispatchQueue.main.async {
+            isFocused = true
         }
     }
 }
@@ -307,11 +327,20 @@ public struct PlaceholderBannerView: View {
 public struct SearchQueryBar: View {
     public let placeholder: String
     @Binding public var query: String
+    public var focusTrigger: UUID = UUID()
     public let onSearch: () -> Void
 
-    public init(placeholder: String, query: Binding<String>, onSearch: @escaping () -> Void) {
+    @FocusState private var isFocused: Bool
+
+    public init(
+        placeholder: String,
+        query: Binding<String>,
+        focusTrigger: UUID = UUID(),
+        onSearch: @escaping () -> Void
+    ) {
         self.placeholder = placeholder
         self._query = query
+        self.focusTrigger = focusTrigger
         self.onSearch = onSearch
     }
 
@@ -320,6 +349,7 @@ public struct SearchQueryBar: View {
             TextField(placeholder, text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
+                .focused($isFocused)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .onSubmit {
@@ -330,6 +360,7 @@ public struct SearchQueryBar: View {
                 Button {
                     query = ""
                     onSearch()
+                    requestFocus()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 13))
@@ -354,5 +385,21 @@ public struct SearchQueryBar: View {
         )
         .padding(.top, 6)
         .padding(.bottom, 8)
+        .onAppear {
+            requestFocus()
+        }
+        .onChange(of: placeholder) { _, _ in
+            requestFocus()
+        }
+        .onChange(of: focusTrigger) { _, _ in
+            requestFocus()
+        }
+    }
+
+    private func requestFocus() {
+        isFocused = true
+        DispatchQueue.main.async {
+            isFocused = true
+        }
     }
 }

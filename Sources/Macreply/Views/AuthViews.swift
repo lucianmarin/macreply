@@ -19,7 +19,7 @@ public struct LoginView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
                     Rectangle()
-                        .fill(SubTheme.alert)
+                        .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
                 .padding(.top, 4)
@@ -116,7 +116,7 @@ public struct RegisterView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
                     Rectangle()
-                        .fill(SubTheme.alert)
+                        .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
                 .padding(.top, 4)
@@ -225,7 +225,7 @@ public struct AboutView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
                     Rectangle()
-                        .fill(SubTheme.alert)
+                        .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
                 .padding(.top, 4)

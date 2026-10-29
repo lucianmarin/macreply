@@ -83,6 +83,7 @@ struct MacreplyTests {
         #expect(entry.createdBy.allLinks.map(\.name) == ["GitHub", "Telephone", "X"])
     }
 
+    @MainActor
     @Test("Sidebar sections match Subreply authenticated and guest states")
     func testSidebarSections() {
         let authSections = SidebarSection.visibleSections(isAuthenticated: true)
@@ -95,6 +96,26 @@ struct MacreplyTests {
         #expect(SidebarSection.following.systemImage == "text.insert")
         #expect(SidebarSection.followers.systemImage == "text.append")
         #expect(SidebarSection.messages.systemImage == "bubble.left")
+
+        let suiteName = "macreply.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(defaults: defaults)
+        #expect(state.systemImage(for: .messages) == "bubble.left")
+        state.hasMessages = true
+        #expect(state.systemImage(for: .messages) == "bubble.left")
+
+        state.openConversation("subreply")
+        #expect(state.isSectionSelected(.messages) == true)
+        #expect(state.isSectionSelected(.trending) == false)
+        #expect(state.systemImage(for: .messages) == "ellipsis.bubble")
+        state.hasMessages = true
+        #expect(state.systemImage(for: .messages) == "text.bubble")
+
+        state.selectSection(.messages)
+        #expect(state.isSectionSelected(.messages) == true)
+        #expect(state.systemImage(for: .messages) == "bubble.left")
 
         let guestSections = SidebarSection.visibleSections(isAuthenticated: false)
         #expect(guestSections == [.about, .login, .register, .people, .trending, .discover])
@@ -340,6 +361,21 @@ struct MacreplyTests {
         let image = AppIcon.loadOrRenderImage()
         #expect(image.size.width > 0)
         #expect(image.size.height > 0)
+        #expect(!AppIcon.upperTileCGPath().isEmpty)
+        #expect(!AppIcon.lowerTileCGPath().isEmpty)
+    }
+
+    @Test("SubTheme accent and alert colors match Subreply classic branding")
+    func testSubThemeBrandingColors() throws {
+        let accentSRGB = try #require(NSColor(SubTheme.accent).usingColorSpace(.sRGB))
+        #expect(abs(accentSRGB.redComponent - (0x2E / 255.0)) < 0.01)
+        #expect(abs(accentSRGB.greenComponent - (0xB8 / 255.0)) < 0.01)
+        #expect(abs(accentSRGB.blueComponent - (0xB8 / 255.0)) < 0.01)
+
+        let alertSRGB = try #require(NSColor(SubTheme.alert).usingColorSpace(.sRGB))
+        #expect(abs(alertSRGB.redComponent - 1.0) < 0.01)
+        #expect(abs(alertSRGB.greenComponent - (0x45 / 255.0)) < 0.01)
+        #expect(abs(alertSRGB.blueComponent - 0.0) < 0.01)
     }
 
     @Test("Decodes MemberResponse with optional email when member is req.user")

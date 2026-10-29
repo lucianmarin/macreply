@@ -28,7 +28,8 @@ public struct PeopleListView: View {
                 if section == .people {
                     SearchQueryBar(
                         placeholder: "Find people",
-                        query: $searchQuery
+                        query: $searchQuery,
+                        focusTrigger: appState.feedRefreshTrigger
                     ) {
                         appState.peopleSearchQuery = searchQuery
                         Task { await loadUsers(reset: true) }

@@ -133,7 +133,7 @@ private struct MessageInboxRow: View {
                     appState.openConversation(chat.createdBy.username)
                 }
                 .font(.system(size: 13))
-                .foregroundStyle(SubTheme.silver)
+                .foregroundStyle(chat.seen ? SubTheme.silver : SubTheme.accent)
                 .buttonStyle(.subLink)
 
                 Spacer(minLength: 0)
@@ -195,12 +195,16 @@ public struct ConversationView: View {
                         text: "Please wait for @\(username) to respond"
                     )
                 } else {
-                    ComposerView(placeholder: "Message @\(username)") { content in
+                    ComposerView(
+                        placeholder: "Message @\(username)",
+                        focusTrigger: appState.feedRefreshTrigger
+                    ) { content in
                         let sent = try await appState.apiClient.sendMessage(
                             username: username,
                             content: content
                         )
                         messages.insert(sent, at: 0)
+                        appState.hasMessages = true
                         if let current = appState.currentUser?.username.lowercased(),
                            current != username.lowercased() {
                             let hasBackward = messages.contains { $0.createdBy.username.lowercased() == username.lowercased() }
@@ -311,6 +315,7 @@ public struct ConversationView: View {
             } else {
                 messages.append(contentsOf: response.entries)
             }
+            appState.hasMessages = !messages.isEmpty
             if let blocked = response.blocked {
                 isBlockedFromServer = blocked
             }
@@ -331,6 +336,7 @@ public struct ConversationView: View {
             if ok {
                 clearStatus = "Cleared"
                 messages.removeAll()
+                appState.hasMessages = false
                 isConfirmingClear = false
             } else {
                 clearStatus = "Error"
@@ -368,7 +374,7 @@ private struct ConversationMessageRow: View {
                 HStack(spacing: 10) {
                     Text(chat.seen ? "read" : "unread")
                         .font(.system(size: 13))
-                        .foregroundStyle(SubTheme.silver)
+                        .foregroundStyle(chat.seen ? SubTheme.silver : SubTheme.accent)
 
                     if isUnsent {
                         Text("unsent")

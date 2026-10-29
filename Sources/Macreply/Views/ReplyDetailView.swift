@@ -137,7 +137,10 @@ public struct ReplyDetailView: View {
                 text: "Share reply #\(entry.id) anywhere"
             )
         } else {
-            ComposerView(placeholder: "Reply to @\(entry.createdBy.username)") { content in
+            ComposerView(
+                placeholder: "Reply to @\(entry.createdBy.username)",
+                focusTrigger: appState.feedRefreshTrigger
+            ) { content in
                 let created = try await appState.apiClient.createReply(
                     parentID: entry.id,
                     content: content

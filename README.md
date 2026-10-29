@@ -17,8 +17,8 @@ Native macOS client for [Subreply](https://subreply.com) (`subreply.com/api`), b
    - Maximum of one `@mention`, one `#hashtag` (or `#id` reply reference), and one `http(s)://` link per post.
 3. **Adaptive Minimalist Palette**:
    - Respects macOS system light and dark appearance.
-   - **Accent**: `#4060E0` (Light) / `#6080E0` (Dark) for links, mentions, hashtags, and follow actions.
-   - **Alert**: `#FF4000` for active sidebar indicators, unread notification badges, and validation errors.
+   - **Accent**: `#2EB8B8` for active sidebar indicators, submit buttons, links, mentions, hashtags, and follow actions.
+   - **Alert**: `#FF4500` for unread notification highlights and validation errors.
    - **Surface**: Subtle `whitesmoke` (`#F0F0F0` Light / `#181818` Dark) inputs and 1pt row dividers, with `redsmoke` (`#FFF0F0` Light / `#281818` Dark) warning tint when input exceeds 640 characters.
 4. **Rich Inline Content Parsing**:
    - `@username` opens the mentioned member's native profile feed.
@@ -30,7 +30,7 @@ Native macOS client for [Subreply](https://subreply.com) (`subreply.com/api`), b
 
 ## 2. Sidebar Navigation & Feeds
 
-The sidebar mirrors `templates/sidebar.html` from the Subreply web app and polls `/api/notifications` to display unread counts in alert red (`#FF4000`).
+The sidebar mirrors `templates/sidebar.html` from the Subreply web app and polls `/api/notifications` to display unread counts in alert orange-red (`#FF4500`).
 
 ### Authenticated Sidebar Items
 | Item | Endpoint | Description |

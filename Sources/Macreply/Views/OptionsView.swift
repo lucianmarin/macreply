@@ -90,7 +90,7 @@ public struct OptionsView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(selectedTab == tab ? Color.primary : SubTheme.silver)
                         Rectangle()
-                            .fill(selectedTab == tab ? SubTheme.alert : Color.clear)
+                            .fill(selectedTab == tab ? SubTheme.accent : Color.clear)
                             .frame(width: 10, height: 2)
                     }
                 }
@@ -453,12 +453,12 @@ public struct SubSubmitButton: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 14))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.white)
                 .padding(.horizontal, 15)
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: SubTheme.radius)
-                        .fill(isHovered ? SubTheme.gainsboro : SubTheme.whitesmoke)
+                        .fill(isHovered ? SubTheme.gray : SubTheme.accent)
                 )
         }
         .buttonStyle(.subLink)

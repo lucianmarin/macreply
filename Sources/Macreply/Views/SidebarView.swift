@@ -1,14 +1,9 @@
 import SwiftUI
 
 public enum SubTheme {
-    public static let accent = Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        return isDark
-            ? NSColor(red: 0x60 / 255.0, green: 0x80 / 255.0, blue: 0xE0 / 255.0, alpha: 1.0)
-            : NSColor(red: 0x40 / 255.0, green: 0x60 / 255.0, blue: 0xE0 / 255.0, alpha: 1.0)
-    }))
+    public static let accent = Color(red: 0x2E / 255.0, green: 0xB8 / 255.0, blue: 0xB8 / 255.0)
 
-    public static let alert = Color(red: 1.0, green: 0x40 / 255.0, blue: 0.0)
+    public static let alert = Color(red: 1.0, green: 0x45 / 255.0, blue: 0.0)
 
     public static let background = Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
         let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -647,7 +642,8 @@ public struct SidebarView: View {
                     ForEach(SidebarSection.visibleSections(isAuthenticated: appState.isAuthenticated)) { section in
                         SidebarRowButton(
                             section: section,
-                            isSelected: appState.selectedSection == section && appState.navigationPath.isEmpty,
+                            systemImage: appState.systemImage(for: section),
+                            isSelected: appState.isSectionSelected(section),
                             isCompact: appState.isCompactSidebar,
                             badgeCount: appState.badgeCount(for: section)
                         ) {
@@ -675,6 +671,7 @@ public struct SidebarView: View {
 
 private struct SidebarRowButton: View {
     let section: SidebarSection
+    let systemImage: String
     let isSelected: Bool
     let isCompact: Bool
     let badgeCount: Int
@@ -699,7 +696,7 @@ private struct SidebarRowButton: View {
                 }
 
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: section.systemImage)
+                    Image(systemName: systemImage)
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 22, height: 20)
                         .foregroundStyle(
@@ -732,7 +729,7 @@ private struct SidebarRowButton: View {
 
     private var rowBackground: Color {
         if isSelected {
-            return SubTheme.alert
+            return SubTheme.accent
         } else if isHovered {
             return Color.primary.opacity(0.08)
         } else {

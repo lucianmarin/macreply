@@ -146,6 +146,7 @@ public final class AppState: ObservableObject {
             deliverNewNotifications(from: oldValue, to: notifications)
         }
     }
+    @Published public var hasMessages: Bool = false
     @Published public private(set) var deliveredNotificationMessages: [String] = []
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
@@ -242,6 +243,7 @@ public final class AppState: ObservableObject {
     }
 
     public func openConversation(_ username: String) {
+        hasMessages = false
         navigationPath.append(.conversation(username.lowercased()))
     }
 
@@ -330,6 +332,7 @@ public final class AppState: ObservableObject {
         token = nil
         currentUser = nil
         notifications = SubNotifications()
+        hasMessages = false
         deliveredNotificationMessages.removeAll()
         persistSession()
         Task {
@@ -337,6 +340,20 @@ public final class AppState: ObservableObject {
         }
         navigationPath.removeAll()
         selectedSection = .login
+    }
+
+    public func isSectionSelected(_ section: SidebarSection) -> Bool {
+        if case .conversation = navigationPath.last {
+            return section == .messages
+        }
+        return selectedSection == section && navigationPath.isEmpty
+    }
+
+    public func systemImage(for section: SidebarSection) -> String {
+        if section == .messages, case .conversation = navigationPath.last {
+            return hasMessages ? "text.bubble" : "ellipsis.bubble"
+        }
+        return section.systemImage
     }
 
     public func refreshNotifications() async {
