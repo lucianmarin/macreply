@@ -62,7 +62,6 @@ public struct ReplyDetailView: View {
                             }
                             EntryItemView(
                                 entry: $ancestors[index],
-                                isSummary: false,
                                 isRootOverride: index == 0
                             )
                         }
@@ -81,7 +80,6 @@ public struct ReplyDetailView: View {
 
                         EntryItemView(
                             entry: entryBinding,
-                            isSummary: ancestors.isEmpty,
                             isRootOverride: ancestors.isEmpty,
                             canDeleteAsRecipient: ancestors.last.map {
                                 $0.createdBy.username.lowercased() == appState.currentUser?.username.lowercased()

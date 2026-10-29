@@ -303,7 +303,7 @@ public struct EntryItemView: View {
             RichContentView(
                 author: entry.createdBy,
                 content: entry.content,
-                fontSize: isSummary ? 16 : 14
+                fontSize: 14
             )
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -337,7 +337,7 @@ public struct EntryItemView: View {
                             toggleSave()
                         }
                         .font(.system(size: 13))
-                        .foregroundStyle(SubTheme.gray)
+                        .foregroundStyle(entry.saved ? SubTheme.accent : SubTheme.gray)
                         .buttonStyle(.subLink)
                     }
 
@@ -352,14 +352,14 @@ public struct EntryItemView: View {
                                 deleteError = false
                             }
                             .font(.system(size: 13))
-                            .foregroundStyle(SubTheme.gray)
+                            .foregroundStyle(SubTheme.accent)
                             .buttonStyle(.subLink)
 
                             Button(deleteError ? "error" : "yes") {
                                 performDelete()
                             }
                             .font(.system(size: 13))
-                            .foregroundStyle(deleteError ? SubTheme.alert : SubTheme.gray)
+                            .foregroundStyle(SubTheme.alert)
                             .buttonStyle(.subLink)
                         } else {
                             Button("delete") {

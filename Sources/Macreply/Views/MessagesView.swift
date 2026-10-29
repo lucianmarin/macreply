@@ -386,14 +386,14 @@ private struct ConversationMessageRow: View {
                             unsendError = false
                         }
                         .font(.system(size: 13))
-                        .foregroundStyle(SubTheme.gray)
+                        .foregroundStyle(SubTheme.accent)
                         .buttonStyle(.subLink)
 
                         Button(unsendError ? "error" : "yes") {
                             performUnsend()
                         }
                         .font(.system(size: 13))
-                        .foregroundStyle(unsendError ? SubTheme.alert : SubTheme.gray)
+                        .foregroundStyle(SubTheme.alert)
                         .buttonStyle(.subLink)
                     } else {
                         Button("unsend") {
