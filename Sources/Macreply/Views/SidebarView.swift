@@ -360,21 +360,78 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
     }
 }
 
-/// Draggable fake titlebar region so the user can drag the window from the top area.
+/// Draggable fake titlebar region so the user can drag the window from the top area
+/// and trigger the system titlebar double-click action around the traffic lights.
 public struct FakeTitleBarDragRegion: NSViewRepresentable {
-    public init() {}
+    public let handlesDoubleClick: Bool
 
-    public func makeNSView(context: Context) -> NSView {
-        DraggableTitleBarNSView()
+    public init(handlesDoubleClick: Bool = true) {
+        self.handlesDoubleClick = handlesDoubleClick
     }
 
-    public func updateNSView(_ nsView: NSView, context: Context) {}
+    public func makeNSView(context: Context) -> NSView {
+        let view = DraggableTitleBarNSView()
+        view.handlesDoubleClick = handlesDoubleClick
+        return view
+    }
 
-    private final class DraggableTitleBarNSView: NSView {
-        override var mouseDownCanMoveWindow: Bool { true }
+    public func updateNSView(_ nsView: NSView, context: Context) {
+        if let view = nsView as? DraggableTitleBarNSView {
+            view.handlesDoubleClick = handlesDoubleClick
+        }
+    }
+
+    final class DraggableTitleBarNSView: NSView {
+        var handlesDoubleClick: Bool = true
+        var userDefaults: UserDefaults = .standard
+
+        override var mouseDownCanMoveWindow: Bool { !handlesDoubleClick }
+
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func mouseDown(with event: NSEvent) {
+            if handlesDoubleClick {
+                if event.clickCount == 2, let window {
+                    Self.performTitleBarDoubleClickAction(on: window, defaults: userDefaults)
+                }
+            } else {
+                window?.performDrag(with: event)
+            }
+        }
+
+        override func mouseDragged(with event: NSEvent) {
             window?.performDrag(with: event)
+        }
+
+        static func performTitleBarDoubleClickAction(on window: NSWindow, defaults: UserDefaults = .standard) {
+            guard !window.styleMask.contains(.fullScreen) else { return }
+
+            let action: String
+            if let configured = defaults.string(forKey: "AppleActionOnDoubleClick") {
+                action = configured
+            } else if defaults.object(forKey: "AppleMiniaturizeOnDoubleClick") as? Bool == true {
+                action = "Minimize"
+            } else {
+                action = "Maximize"
+            }
+
+            switch action.lowercased() {
+            case "none", "donothing":
+                break
+            case "minimize":
+                window.performMiniaturize(nil)
+            case "fill":
+                let fillSelector = Selector(("_zoomFill:"))
+                if window.responds(to: fillSelector) {
+                    window.perform(fillSelector, with: nil)
+                } else {
+                    window.performZoom(nil)
+                }
+            case "maximize", "zoom":
+                window.performZoom(nil)
+            default:
+                window.performZoom(nil)
+            }
         }
     }
 }
@@ -634,7 +691,7 @@ public struct SidebarView: View {
         GeometryReader { _ in
             VStack(spacing: 0) {
                 // Fake titlebar area holding the macOS window controls (aligned with the compose field)
-                FakeTitleBarDragRegion()
+                FakeTitleBarDragRegion(handlesDoubleClick: true)
                     .frame(height: SubTheme.sidebarTopHeaderHeight)
                     .frame(maxWidth: .infinity)
 
@@ -654,7 +711,7 @@ public struct SidebarView: View {
                 .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
                 .padding(.bottom, SubTheme.sidebarBottomPadding)
 
-                FakeTitleBarDragRegion()
+                FakeTitleBarDragRegion(handlesDoubleClick: false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

@@ -412,4 +412,116 @@ struct MacreplyTests {
         #expect(decodedOther.member.username == "subreply")
         #expect(decodedOther.member.email == "")
     }
+
+    @MainActor
+    @Test("Double-clicking top sidebar region around traffic lights respects macOS AppleActionOnDoubleClick")
+    func testTopSidebarTrafficLightRegionDoubleClickRespectsMacOSAction() throws {
+        final class TestWindow: NSWindow {
+            var miniaturizeCount = 0
+            var zoomCount = 0
+            var fillCount = 0
+
+            override func performMiniaturize(_ sender: Any?) {
+                miniaturizeCount += 1
+            }
+
+            override func performZoom(_ sender: Any?) {
+                zoomCount += 1
+            }
+
+            @objc func _zoomFill(_ sender: Any?) {
+                fillCount += 1
+            }
+        }
+
+        let suiteName = "macreply.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(defaults: defaults)
+        let sidebar = SidebarView()
+            .environmentObject(state)
+            .frame(height: 640)
+
+        let window = TestWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 764, height: 640),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+
+        let host = NSHostingView(rootView: sidebar)
+        host.frame = NSRect(x: 0, y: 0, width: 120, height: 640)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+
+        func findDragViews(in view: NSView) -> [FakeTitleBarDragRegion.DraggableTitleBarNSView] {
+            var result: [FakeTitleBarDragRegion.DraggableTitleBarNSView] = []
+            if let dragView = view as? FakeTitleBarDragRegion.DraggableTitleBarNSView {
+                result.append(dragView)
+            }
+            for sub in view.subviews {
+                result.append(contentsOf: findDragViews(in: sub))
+            }
+            return result
+        }
+
+        let dragViews = findDragViews(in: host)
+        let topRegion = try #require(dragViews.first(where: { $0.handlesDoubleClick }))
+        let bottomRegion = try #require(dragViews.first(where: { !$0.handlesDoubleClick }))
+        topRegion.userDefaults = defaults
+        bottomRegion.userDefaults = defaults
+
+        let singleClick = try #require(NSEvent.mouseEvent(
+            with: .leftMouseDown,
+            location: NSPoint(x: 90, y: 605.5),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 1,
+            clickCount: 1,
+            pressure: 1.0
+        ))
+        let doubleClick = try #require(NSEvent.mouseEvent(
+            with: .leftMouseDown,
+            location: NSPoint(x: 90, y: 605.5),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime + 0.1,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 2,
+            clickCount: 2,
+            pressure: 1.0
+        ))
+
+        // 1. Maximize / Zoom
+        defaults.set("Maximize", forKey: "AppleActionOnDoubleClick")
+        topRegion.mouseDown(with: singleClick)
+        #expect(window.zoomCount == 0)
+        bottomRegion.mouseDown(with: doubleClick)
+        #expect(window.zoomCount == 0)
+        topRegion.mouseDown(with: doubleClick)
+        #expect(window.zoomCount == 1)
+
+        // 2. Minimize
+        defaults.set("Minimize", forKey: "AppleActionOnDoubleClick")
+        topRegion.mouseDown(with: doubleClick)
+        #expect(window.miniaturizeCount == 1)
+
+        // 3. Fill
+        defaults.set("Fill", forKey: "AppleActionOnDoubleClick")
+        topRegion.mouseDown(with: doubleClick)
+        #expect(window.fillCount == 1)
+
+        // 4. None (Do Nothing)
+        defaults.set("None", forKey: "AppleActionOnDoubleClick")
+        topRegion.mouseDown(with: doubleClick)
+        #expect(window.zoomCount == 1)
+        #expect(window.miniaturizeCount == 1)
+        #expect(window.fillCount == 1)
+    }
 }
