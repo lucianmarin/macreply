@@ -442,8 +442,6 @@ public struct SubSubmitButton: View {
     public let title: String
     public let action: () -> Void
 
-    @State private var isHovered = false
-
     public init(title: String, action: @escaping () -> Void) {
         self.title = title
         self.action = action
@@ -453,17 +451,14 @@ public struct SubSubmitButton: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 14))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(SubTheme.background)
                 .padding(.horizontal, 15)
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: SubTheme.radius)
-                        .fill(isHovered ? SubTheme.gray : SubTheme.accent)
+                        .fill(SubTheme.accent)
                 )
         }
         .buttonStyle(.subLink)
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }

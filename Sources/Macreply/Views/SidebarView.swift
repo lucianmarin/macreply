@@ -748,7 +748,7 @@ private struct SidebarRowButton: View {
 
                     Text(section.title)
                         .font(.system(size: 14, weight: isSelected ? .medium : .regular))
-                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .foregroundStyle(isSelected ? SubTheme.background : Color.primary)
                         .lineLimit(1)
                 }
 
@@ -757,13 +757,13 @@ private struct SidebarRowButton: View {
                         .font(.system(size: 14, weight: .medium))
                         .frame(width: 22, height: 20)
                         .foregroundStyle(
-                            isSelected ? Color.white : (hasUnread ? SubTheme.alert : Color.primary)
+                            isSelected ? SubTheme.background : (hasUnread ? SubTheme.alert : Color.primary)
                         )
 
                     if badgeCount > 0 {
                         Text(SubNotifications.capBadge(badgeCount))
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(isSelected ? Color.white : SubTheme.alert)
+                            .foregroundStyle(isSelected ? SubTheme.background : SubTheme.alert)
                             .offset(x: 7, y: -5)
                     }
                 }

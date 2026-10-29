@@ -376,6 +376,24 @@ struct MacreplyTests {
         #expect(abs(alertSRGB.redComponent - 1.0) < 0.01)
         #expect(abs(alertSRGB.greenComponent - (0x45 / 255.0)) < 0.01)
         #expect(abs(alertSRGB.blueComponent - 0.0) < 0.01)
+
+        let bgNSColor = NSColor(SubTheme.background)
+        if let lightAppearance = NSAppearance(named: .aqua) {
+            lightAppearance.performAsCurrentDrawingAppearance {
+                let srgb = bgNSColor.usingColorSpace(.sRGB)
+                #expect(srgb?.redComponent == 1.0)
+                #expect(srgb?.greenComponent == 1.0)
+                #expect(srgb?.blueComponent == 1.0)
+            }
+        }
+        if let darkAppearance = NSAppearance(named: .darkAqua) {
+            darkAppearance.performAsCurrentDrawingAppearance {
+                let srgb = bgNSColor.usingColorSpace(.sRGB)
+                #expect(srgb?.redComponent == 0.0)
+                #expect(srgb?.greenComponent == 0.0)
+                #expect(srgb?.blueComponent == 0.0)
+            }
+        }
     }
 
     @Test("Decodes MemberResponse with optional email when member is req.user")
