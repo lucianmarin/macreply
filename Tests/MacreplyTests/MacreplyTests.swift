@@ -432,12 +432,13 @@ struct MacreplyTests {
     }
 
     @MainActor
-    @Test("Double-clicking top sidebar region around traffic lights respects macOS AppleActionOnDoubleClick")
+    @Test("Double-clicking and dragging top sidebar region around traffic lights respects macOS AppleActionOnDoubleClick and exclusive drag")
     func testTopSidebarTrafficLightRegionDoubleClickRespectsMacOSAction() throws {
         final class TestWindow: NSWindow {
             var miniaturizeCount = 0
             var zoomCount = 0
             var fillCount = 0
+            var dragCount = 0
 
             override func performMiniaturize(_ sender: Any?) {
                 miniaturizeCount += 1
@@ -445,6 +446,10 @@ struct MacreplyTests {
 
             override func performZoom(_ sender: Any?) {
                 zoomCount += 1
+            }
+
+            override func performDrag(with event: NSEvent) {
+                dragCount += 1
             }
 
             @objc func _zoomFill(_ sender: Any?) {
@@ -469,7 +474,7 @@ struct MacreplyTests {
         )
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
 
         let host = NSHostingView(rootView: sidebar)
         host.frame = NSRect(x: 0, y: 0, width: 120, height: 640)
@@ -488,16 +493,26 @@ struct MacreplyTests {
         }
 
         let dragViews = findDragViews(in: host)
+        #expect(dragViews.count == 1)
         let topRegion = try #require(dragViews.first(where: { $0.handlesDoubleClick }))
-        let bottomRegion = try #require(dragViews.first(where: { !$0.handlesDoubleClick }))
         topRegion.userDefaults = defaults
-        bottomRegion.userDefaults = defaults
 
         let singleClick = try #require(NSEvent.mouseEvent(
             with: .leftMouseDown,
             location: NSPoint(x: 90, y: 605.5),
             modifierFlags: [],
             timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 1,
+            clickCount: 1,
+            pressure: 1.0
+        ))
+        let dragEvent = try #require(NSEvent.mouseEvent(
+            with: .leftMouseDragged,
+            location: NSPoint(x: 95, y: 605.5),
+            modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime + 0.05,
             windowNumber: window.windowNumber,
             context: nil,
             eventNumber: 1,
@@ -516,11 +531,13 @@ struct MacreplyTests {
             pressure: 1.0
         ))
 
+        // Dragging top region moves window
+        topRegion.mouseDragged(with: dragEvent)
+        #expect(window.dragCount == 1)
+
         // 1. Maximize / Zoom
         defaults.set("Maximize", forKey: "AppleActionOnDoubleClick")
         topRegion.mouseDown(with: singleClick)
-        #expect(window.zoomCount == 0)
-        bottomRegion.mouseDown(with: doubleClick)
         #expect(window.zoomCount == 0)
         topRegion.mouseDown(with: doubleClick)
         #expect(window.zoomCount == 1)
@@ -541,5 +558,44 @@ struct MacreplyTests {
         #expect(window.zoomCount == 1)
         #expect(window.miniaturizeCount == 1)
         #expect(window.fillCount == 1)
+    }
+
+    @Test("clearConversation posts to /api/{username}/clear and verifies status == cleared")
+    func testClearConversationEndpoint() async throws {
+        final class MockURLProtocol: URLProtocol, @unchecked Sendable {
+            nonisolated(unsafe) static var lastRequest: URLRequest?
+            nonisolated(unsafe) static var responseStatus: String = "cleared"
+
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+            override func startLoading() {
+                Self.lastRequest = request
+                let url = request.url!
+                let http = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = "{\"status\": \"\(Self.responseStatus)\"}".data(using: .utf8)!
+                client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            }
+
+            override func stopLoading() {}
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let client = APIClient(baseURLString: "https://subreply.com/api", token: "tok", session: session)
+
+        MockURLProtocol.responseStatus = "cleared"
+        let cleared = try await client.clearConversation(username: "Subreply")
+        #expect(cleared == true)
+        #expect(MockURLProtocol.lastRequest?.httpMethod == "POST")
+        #expect(MockURLProtocol.lastRequest?.url?.absoluteString == "https://subreply.com/api/subreply/clear")
+
+        MockURLProtocol.responseStatus = "not found"
+        await #expect(throws: APIError.serverStatus("not found")) {
+            _ = try await client.clearConversation(username: "unknown")
+        }
     }
 }

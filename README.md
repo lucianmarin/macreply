@@ -90,7 +90,7 @@ The sidebar mirrors `templates/sidebar.html` from the Subreply web app and polls
   - Composer at the top (`Message @username`). Enforces Subreply's chat request rule ("Wait for the recipient to respond" if a first message was sent and not yet answered).
   - Incoming messages from the other user are indented by `30pt`.
   - Own sent messages display `unsend` (`POST /api/unsend/{id}` with `undo / yes` confirmation).
-  - Includes a `Clear out` action (`POST /api/{username}/clearout` with confirmation) to delete the conversation history.
+  - Includes a `Clear out` action (`POST /api/{username}/clear` with `Undo — Yes` confirmation) to delete the conversation history.
 
 ---
 

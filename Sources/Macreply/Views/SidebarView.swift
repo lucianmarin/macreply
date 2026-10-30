@@ -272,7 +272,7 @@ public struct FakeTitleBarWindowConfigurator: NSViewRepresentable {
             window.titlebarAppearsTransparent = true
             window.titlebarSeparatorStyle = .none
             window.styleMask.insert(.fullSizeContentView)
-            window.isMovableByWindowBackground = true
+            window.isMovableByWindowBackground = false
         }
 
         private func updateWindowSizeLimits(_ window: NSWindow) {
@@ -385,21 +385,19 @@ public struct FakeTitleBarDragRegion: NSViewRepresentable {
         var handlesDoubleClick: Bool = true
         var userDefaults: UserDefaults = .standard
 
-        override var mouseDownCanMoveWindow: Bool { !handlesDoubleClick }
+        override var mouseDownCanMoveWindow: Bool { false }
 
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { handlesDoubleClick }
 
         override func mouseDown(with event: NSEvent) {
-            if handlesDoubleClick {
-                if event.clickCount == 2, let window {
-                    Self.performTitleBarDoubleClickAction(on: window, defaults: userDefaults)
-                }
-            } else {
-                window?.performDrag(with: event)
+            guard handlesDoubleClick else { return }
+            if event.clickCount == 2, let window {
+                Self.performTitleBarDoubleClickAction(on: window, defaults: userDefaults)
             }
         }
 
         override func mouseDragged(with event: NSEvent) {
+            guard handlesDoubleClick else { return }
             window?.performDrag(with: event)
         }
 
@@ -711,8 +709,7 @@ public struct SidebarView: View {
                 .padding(.horizontal, appState.isCompactSidebar ? 8 : 10)
                 .padding(.bottom, SubTheme.sidebarBottomPadding)
 
-                FakeTitleBarDragRegion(handlesDoubleClick: false)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Spacer(minLength: 0)
             }
         }
         .frame(

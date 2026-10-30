@@ -261,24 +261,36 @@ public struct ConversationView: View {
                             .padding(.vertical, 10)
                         } else if !isBlockedWaitingForResponse {
                             Divider().overlay(SubTheme.whitesmoke)
-                            HStack {
+                            HStack(spacing: 0) {
                                 Spacer()
                                 if let clearStatus {
                                     Text(clearStatus)
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
-                                } else {
-                                    Button {
-                                        if !isConfirmingClear {
-                                            isConfirmingClear = true
-                                        } else {
-                                            Task { await performClearout() }
-                                        }
-                                    } label: {
-                                        Text(isConfirmingClear ? "Are you sure?" : "Clear out")
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(isConfirmingClear ? SubTheme.alert : SubTheme.gray)
+                                        .foregroundStyle(SubTheme.silver)
+                                } else if isConfirmingClear {
+                                    Button("Undo") {
+                                        isConfirmingClear = false
                                     }
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(SubTheme.accent)
+                                    .buttonStyle(.subLink)
+
+                                    Text(" — ")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(SubTheme.silver)
+
+                                    Button("Yes") {
+                                        Task { await performClear() }
+                                    }
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(SubTheme.alert)
+                                    .buttonStyle(.subLink)
+                                } else {
+                                    Button("Clear out") {
+                                        isConfirmingClear = true
+                                    }
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(SubTheme.gray)
                                     .buttonStyle(.subLink)
                                 }
                                 Spacer()
@@ -301,6 +313,8 @@ public struct ConversationView: View {
         if reset {
             isLoading = true
             errorMessage = nil
+            isConfirmingClear = false
+            clearStatus = nil
         } else {
             isLoadingMore = true
         }
@@ -329,15 +343,13 @@ public struct ConversationView: View {
         isLoadingMore = false
     }
 
-    private func performClearout() async {
+    private func performClear() async {
+        isConfirmingClear = false
         clearStatus = "Clearing..."
         do {
-            let ok = try await appState.apiClient.clearoutConversation(username: username)
+            let ok = try await appState.apiClient.clearConversation(username: username)
             if ok {
                 clearStatus = "Cleared"
-                messages.removeAll()
-                appState.hasMessages = false
-                isConfirmingClear = false
             } else {
                 clearStatus = "Error"
             }

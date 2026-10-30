@@ -344,9 +344,9 @@ public actor APIClient {
         throw APIError.serverStatus(response.status ?? "failed")
     }
 
-    public func clearoutConversation(username: String) async throws -> Bool {
+    public func clearConversation(username: String) async throws -> Bool {
         let cleanUsername = username.lowercased()
-        let data = try await performRequest(path: "/\(cleanUsername)/clearout", method: "POST")
+        let data = try await performRequest(path: "/\(cleanUsername)/clear", method: "POST")
         let response = try decode(ActionStatusResponse.self, from: data)
         if response.status == "cleared" {
             return true
