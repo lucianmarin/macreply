@@ -9,6 +9,7 @@ public struct FeedView: View {
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = false
     @State private var isLoadingMore: Bool = false
+    @State private var loadMoreError: Bool = false
     @State private var errorMessage: String?
     @State private var searchQuery: String = ""
 
@@ -99,9 +100,9 @@ public struct FeedView: View {
                                 Button {
                                     Task { await loadFeed(reset: false) }
                                 } label: {
-                                    Text(isLoadingMore ? "Loading..." : "Load more")
+                                    Text(loadMoreError ? "Retry" : "Load more")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
+                                        .foregroundStyle(loadMoreError ? SubTheme.alert : SubTheme.gray)
                                 }
                                 .buttonStyle(.subLink)
                                 .disabled(isLoadingMore)
@@ -129,6 +130,7 @@ public struct FeedView: View {
         if reset {
             isLoading = true
             errorMessage = nil
+            loadMoreError = false
         } else {
             isLoadingMore = true
         }
@@ -149,12 +151,17 @@ public struct FeedView: View {
             }
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
+            loadMoreError = false
             if section == .mentions || section == .replies {
                 appState.clearNotificationCount(for: section)
                 await appState.refreshNotifications()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if reset {
+                errorMessage = error.localizedDescription
+            } else {
+                loadMoreError = true
+            }
         }
 
         isLoading = false

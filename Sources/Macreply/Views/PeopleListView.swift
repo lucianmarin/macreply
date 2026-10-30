@@ -10,6 +10,7 @@ public struct PeopleListView: View {
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = false
     @State private var isLoadingMore: Bool = false
+    @State private var loadMoreError: Bool = false
     @State private var errorMessage: String?
     @State private var searchQuery: String = ""
 
@@ -80,9 +81,9 @@ public struct PeopleListView: View {
                                 Button {
                                     Task { await loadUsers(reset: false) }
                                 } label: {
-                                    Text(isLoadingMore ? "Loading..." : "Load more")
+                                    Text(loadMoreError ? "Retry" : "Load more")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
+                                        .foregroundStyle(loadMoreError ? SubTheme.alert : SubTheme.gray)
                                 }
                                 .buttonStyle(.subLink)
                                 .disabled(isLoadingMore)
@@ -110,6 +111,7 @@ public struct PeopleListView: View {
         if reset {
             isLoading = true
             errorMessage = nil
+            loadMoreError = false
         } else {
             isLoadingMore = true
         }
@@ -130,13 +132,18 @@ public struct PeopleListView: View {
             }
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
+            loadMoreError = false
 
             if section == .followers {
                 appState.clearNotificationCount(for: .followers)
                 await appState.refreshNotifications()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if reset {
+                errorMessage = error.localizedDescription
+            } else {
+                loadMoreError = true
+            }
         }
 
         isLoading = false

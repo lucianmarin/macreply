@@ -245,6 +245,14 @@ struct MacreplyTests {
 
         state.openConversation(selfUser.username)
         #expect(state.navigationPath == [.conversation("lucian")])
+
+        let otherUser = SubUser(followed: false, username: "subreply", fullName: "Subreply", firstName: "Subreply")
+        let otherRow = UserRowView(member: .constant(otherUser), isMemberHeader: false)
+        #expect(otherRow.followActionTitle == "Follow")
+
+        let followedUser = SubUser(followed: true, username: "subreply", fullName: "Subreply", firstName: "Subreply")
+        let followedRow = UserRowView(member: .constant(followedUser), isMemberHeader: false)
+        #expect(followedRow.followActionTitle == "Unfollow")
     }
 
     @MainActor

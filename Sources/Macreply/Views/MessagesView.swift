@@ -9,6 +9,7 @@ public struct MessagesInboxView: View {
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = false
     @State private var isLoadingMore: Bool = false
+    @State private var loadMoreError: Bool = false
     @State private var errorMessage: String?
 
     private let pageSize = 16
@@ -65,9 +66,9 @@ public struct MessagesInboxView: View {
                                 Button {
                                     Task { await loadInbox(reset: false) }
                                 } label: {
-                                    Text(isLoadingMore ? "Loading..." : "Load more")
+                                    Text(loadMoreError ? "Retry" : "Load more")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
+                                        .foregroundStyle(loadMoreError ? SubTheme.alert : SubTheme.gray)
                                 }
                                 .buttonStyle(.subLink)
                                 .disabled(isLoadingMore)
@@ -91,6 +92,7 @@ public struct MessagesInboxView: View {
         if reset {
             isLoading = true
             errorMessage = nil
+            loadMoreError = false
         } else {
             isLoadingMore = true
         }
@@ -104,8 +106,13 @@ public struct MessagesInboxView: View {
             }
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
+            loadMoreError = false
         } catch {
-            errorMessage = error.localizedDescription
+            if reset {
+                errorMessage = error.localizedDescription
+            } else {
+                loadMoreError = true
+            }
         }
         isLoading = false
         isLoadingMore = false
@@ -129,12 +136,9 @@ private struct MessageInboxRow: View {
                 .foregroundStyle(SubTheme.gray)
                 .buttonStyle(.subLink)
 
-                Button(chat.seen ? "read" : "unread") {
-                    appState.openConversation(chat.createdBy.username)
-                }
-                .font(.system(size: 13))
-                .foregroundStyle(chat.seen ? SubTheme.silver : SubTheme.accent)
-                .buttonStyle(.subLink)
+                Text(chat.seen ? "read" : "unread")
+                    .font(.system(size: 13))
+                    .foregroundStyle(chat.seen ? SubTheme.silver : SubTheme.accent)
 
                 Spacer(minLength: 0)
 
@@ -163,9 +167,12 @@ public struct ConversationView: View {
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = true
     @State private var isLoadingMore: Bool = false
+    @State private var loadMoreError: Bool = false
     @State private var errorMessage: String?
     @State private var isConfirmingClear = false
-    @State private var clearStatus: String?
+    @State private var isClearing = false
+    @State private var isCleared = false
+    @State private var clearError = false
 
     private let pageSize = 16
 
@@ -210,7 +217,8 @@ public struct ConversationView: View {
                             let hasBackward = messages.contains { $0.createdBy.username.lowercased() == username.lowercased() }
                             isBlockedFromServer = !hasBackward
                         }
-                        clearStatus = nil
+                        isCleared = false
+                        clearError = false
                     }
                 }
 
@@ -250,9 +258,9 @@ public struct ConversationView: View {
                                 Button {
                                     Task { await loadConversation(reset: false) }
                                 } label: {
-                                    Text(isLoadingMore ? "Loading..." : "Load more")
+                                    Text(loadMoreError ? "Retry" : "Load more")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
+                                        .foregroundStyle(loadMoreError ? SubTheme.alert : SubTheme.gray)
                                 }
                                 .buttonStyle(.subLink)
                                 .disabled(isLoadingMore)
@@ -263,28 +271,31 @@ public struct ConversationView: View {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack(spacing: 0) {
                                 Spacer()
-                                if let clearStatus {
-                                    Text(clearStatus)
+                                if isCleared {
+                                    Text("Cleared")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.silver)
+                                        .foregroundStyle(SubTheme.gray)
                                 } else if isConfirmingClear {
                                     Button("Undo") {
                                         isConfirmingClear = false
+                                        clearError = false
                                     }
                                     .font(.system(size: 14))
                                     .foregroundStyle(SubTheme.accent)
                                     .buttonStyle(.subLink)
+                                    .disabled(isClearing)
 
                                     Text(" — ")
                                         .font(.system(size: 14))
                                         .foregroundStyle(SubTheme.silver)
 
-                                    Button("Yes") {
+                                    Button(clearError ? "Retry" : "Yes") {
                                         Task { await performClear() }
                                     }
                                     .font(.system(size: 14))
                                     .foregroundStyle(SubTheme.alert)
                                     .buttonStyle(.subLink)
+                                    .disabled(isClearing)
                                 } else {
                                     Button("Clear out") {
                                         isConfirmingClear = true
@@ -313,8 +324,11 @@ public struct ConversationView: View {
         if reset {
             isLoading = true
             errorMessage = nil
+            loadMoreError = false
             isConfirmingClear = false
-            clearStatus = nil
+            isClearing = false
+            isCleared = false
+            clearError = false
         } else {
             isLoadingMore = true
         }
@@ -335,27 +349,35 @@ public struct ConversationView: View {
             }
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
+            loadMoreError = false
             await appState.refreshNotifications()
         } catch {
-            errorMessage = error.localizedDescription
+            if reset {
+                errorMessage = error.localizedDescription
+            } else {
+                loadMoreError = true
+            }
         }
         isLoading = false
         isLoadingMore = false
     }
 
     private func performClear() async {
-        isConfirmingClear = false
-        clearStatus = "Clearing..."
+        guard !isClearing else { return }
+        isClearing = true
         do {
             let ok = try await appState.apiClient.clearConversation(username: username)
             if ok {
-                clearStatus = "Cleared"
+                isCleared = true
+                isConfirmingClear = false
+                clearError = false
             } else {
-                clearStatus = "Error"
+                clearError = true
             }
         } catch {
-            clearStatus = "Error"
+            clearError = true
         }
+        isClearing = false
     }
 }
 
@@ -364,6 +386,7 @@ private struct ConversationMessageRow: View {
     let chat: SubChat
 
     @State private var isConfirmingUnsend = false
+    @State private var isUnsending = false
     @State private var isUnsent = false
     @State private var unsendError = false
 
@@ -400,13 +423,15 @@ private struct ConversationMessageRow: View {
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.accent)
                         .buttonStyle(.subLink)
+                        .disabled(isUnsending)
 
-                        Button(unsendError ? "error" : "yes") {
+                        Button(unsendError ? "retry" : "yes") {
                             performUnsend()
                         }
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
                         .buttonStyle(.subLink)
+                        .disabled(isUnsending)
                     } else {
                         Button("unsend") {
                             isConfirmingUnsend = true
@@ -429,17 +454,23 @@ private struct ConversationMessageRow: View {
     }
 
     private func performUnsend() {
+        guard !isUnsending else { return }
         let chatID = chat.id
+        isUnsending = true
         Task {
             do {
                 let ok = try await appState.apiClient.unsendMessage(id: chatID)
                 if ok {
                     isUnsent = true
                     isConfirmingUnsend = false
+                    unsendError = false
+                } else {
+                    unsendError = true
                 }
             } catch {
                 unsendError = true
             }
+            isUnsending = false
         }
     }
 }

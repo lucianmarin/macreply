@@ -8,6 +8,9 @@ public struct UserRowView: View {
     @Binding public var member: SubUser
     public var isMemberHeader: Bool = false
 
+    @State private var isFollowPending = false
+    @State private var followError = false
+
     public init(member: Binding<SubUser>, isMemberHeader: Bool = false) {
         self._member = member
         self.isMemberHeader = isMemberHeader
@@ -16,6 +19,13 @@ public struct UserRowView: View {
     private var isSelf: Bool {
         guard let current = appState.currentUser?.username.lowercased() else { return false }
         return current == member.username.lowercased()
+    }
+
+    public var followActionTitle: String {
+        if followError {
+            return "Retry"
+        }
+        return member.followed ? "Unfollow" : "Follow"
     }
 
     public var body: some View {
@@ -43,19 +53,20 @@ public struct UserRowView: View {
                             .foregroundStyle(SubTheme.gray)
 
                         if isSelf {
-                            Button("logout") {
+                            Button("Logout") {
                                 appState.logout()
                             }
                             .font(.system(size: 14))
                             .foregroundStyle(SubTheme.gray)
                             .buttonStyle(.subLink)
                         } else {
-                            Button(member.followed ? "unfollow" : "follow") {
+                            Button(followActionTitle) {
                                 toggleFollow()
                             }
-                            .font(.system(size: 14, weight: member.followed ? .regular : .medium))
-                            .foregroundStyle(member.followed ? SubTheme.gray : SubTheme.accent)
+                            .font(.system(size: 14))
+                            .foregroundStyle(followError ? SubTheme.alert : (member.followed ? SubTheme.gray : SubTheme.accent))
                             .buttonStyle(.subLink)
+                            .disabled(isFollowPending)
                         }
                     }
                     .fixedSize(horizontal: true, vertical: false)
@@ -73,7 +84,7 @@ public struct UserRowView: View {
                         }
                     } label: {
                         Text("MESSAGE")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(SubTheme.silver)
                     }
                     .buttonStyle(.subLink)
@@ -144,9 +155,10 @@ public struct UserRowView: View {
     }
 
     private func toggleFollow() {
+        guard !isFollowPending else { return }
         let target = !member.followed
         let username = member.username
-        member.followed = target
+        isFollowPending = true
         Task {
             do {
                 let confirmed = try await appState.apiClient.setFollowing(
@@ -154,9 +166,11 @@ public struct UserRowView: View {
                     follow: target
                 )
                 member.followed = confirmed
+                followError = false
             } catch {
-                member.followed = !target
+                followError = true
             }
+            isFollowPending = false
         }
     }
 }
@@ -174,6 +188,7 @@ public struct MemberView: View {
     @State private var isLoadingDetails: Bool = true
     @State private var isLoadingPosts: Bool = true
     @State private var isLoadingMore: Bool = false
+    @State private var loadMoreError: Bool = false
     @State private var errorMessage: String?
 
     private let pageSize = 16
@@ -266,9 +281,9 @@ public struct MemberView: View {
                                 Button {
                                     Task { await loadMember(reset: false) }
                                 } label: {
-                                    Text(isLoadingMore ? "Loading..." : "Load more")
+                                    Text(loadMoreError ? "Retry" : "Load more")
                                         .font(.system(size: 14))
-                                        .foregroundStyle(SubTheme.gray)
+                                        .foregroundStyle(loadMoreError ? SubTheme.alert : SubTheme.gray)
                                 }
                                 .buttonStyle(.subLink)
                                 .disabled(isLoadingMore)
@@ -318,6 +333,7 @@ public struct MemberView: View {
                 canLoadMore = false
             }
             errorMessage = nil
+            loadMoreError = false
             isLoadingDetails = true
             isLoadingPosts = true
 
@@ -355,8 +371,9 @@ public struct MemberView: View {
                 entries.append(contentsOf: response.entries)
                 currentPage = response.page
                 canLoadMore = response.entries.count == pageSize
+                loadMoreError = false
             } catch {
-                errorMessage = error.localizedDescription
+                loadMoreError = true
             }
             isLoadingMore = false
         }

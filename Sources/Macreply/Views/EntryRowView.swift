@@ -266,8 +266,11 @@ public struct EntryItemView: View {
     public var onDeleted: (() -> Void)? = nil
 
     @State private var isConfirmingDelete = false
+    @State private var isDeleting = false
     @State private var isDeleted = false
     @State private var deleteError = false
+    @State private var isSavePending = false
+    @State private var saveError = false
 
     public init(
         entry: Binding<SubEntry>,
@@ -333,12 +336,13 @@ public struct EntryItemView: View {
                             .buttonStyle(.subLink)
                         }
                     } else {
-                        Button(entry.saved ? "unsave" : "save") {
+                        Button(saveError ? "retry" : (entry.saved ? "unsave" : "save")) {
                             toggleSave()
                         }
                         .font(.system(size: 13))
-                        .foregroundStyle(entry.saved ? SubTheme.accent : SubTheme.gray)
+                        .foregroundStyle(saveError ? SubTheme.alert : (entry.saved ? SubTheme.accent : SubTheme.gray))
                         .buttonStyle(.subLink)
+                        .disabled(isSavePending)
                     }
 
                     if (isOwnEntry || canDeleteAsRecipient) && entry.replyCount == 0 {
@@ -354,13 +358,15 @@ public struct EntryItemView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.accent)
                             .buttonStyle(.subLink)
+                            .disabled(isDeleting)
 
-                            Button(deleteError ? "error" : "yes") {
+                            Button(deleteError ? "retry" : "yes") {
                                 performDelete()
                             }
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.alert)
                             .buttonStyle(.subLink)
+                            .disabled(isDeleting)
                         } else {
                             Button("delete") {
                                 isConfirmingDelete = true
@@ -388,32 +394,41 @@ public struct EntryItemView: View {
     }
 
     private func toggleSave() {
+        guard !isSavePending else { return }
         let targetState = !entry.saved
         let entryID = entry.id
-        entry.saved = targetState
+        isSavePending = true
         Task {
             do {
                 let confirmed = try await appState.apiClient.setSaved(id: entryID, save: targetState)
                 entry.saved = confirmed
+                saveError = false
             } catch {
-                entry.saved = !targetState
+                saveError = true
             }
+            isSavePending = false
         }
     }
 
     private func performDelete() {
+        guard !isDeleting else { return }
         let entryID = entry.id
+        isDeleting = true
         Task {
             do {
                 let ok = try await appState.apiClient.deleteEntry(id: entryID)
                 if ok {
                     isDeleted = true
                     isConfirmingDelete = false
+                    deleteError = false
                     onDeleted?()
+                } else {
+                    deleteError = true
                 }
             } catch {
                 deleteError = true
             }
+            isDeleting = false
         }
     }
 }
