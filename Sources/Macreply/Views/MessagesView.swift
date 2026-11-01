@@ -192,6 +192,15 @@ public struct ConversationView: View {
         return hasForward && !hasBackward && current != username.lowercased()
     }
 
+    private var isSelfConversation: Bool {
+        guard let current = appState.currentUser?.username.lowercased() else { return false }
+        return current == username.lowercased()
+    }
+
+    public var messagePlaceholder: String {
+        isSelfConversation ? "Message yourself" : "Message @\(username)"
+    }
+
     public var body: some View {
         RefreshableScrollView {
             await loadConversation(reset: true)
@@ -203,7 +212,7 @@ public struct ConversationView: View {
                     )
                 } else {
                     ComposerView(
-                        placeholder: "Message @\(username)",
+                        placeholder: messagePlaceholder,
                         focusTrigger: appState.feedRefreshTrigger
                     ) { content in
                         let sent = try await appState.apiClient.sendMessage(

@@ -224,14 +224,21 @@ struct MacreplyTests {
     }
 
     @MainActor
-    @Test("Member header shows MESSAGE action for logged-in user's own profile")
+    @Test("Member header, profile status row, and user rows match Subreply templates")
     func testSelfMemberHeaderShowsMessageButton() {
         let suiteName = "macreply.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         let state = AppState(defaults: defaults)
-        let selfUser = SubUser(username: "lucian", fullName: "Lucian Marin", firstName: "Lucian")
+        let now = Date().timeIntervalSince1970
+        let selfUser = SubUser(
+            username: "lucian",
+            fullName: "Lucian Marin",
+            firstName: "Lucian",
+            createdAt: now - 86400 * 14,
+            seenAt: now - 300
+        )
         state.token = "test-token"
         state.currentUser = selfUser
 
@@ -243,16 +250,40 @@ struct MacreplyTests {
         host.layoutSubtreeIfNeeded()
         #expect(host.fittingSize.height > 0)
 
+        let selfStatusRow = MemberStatusRowView(member: .constant(selfUser))
+            .environmentObject(state)
+            .frame(width: 640)
+        let statusHost = NSHostingView(rootView: selfStatusRow)
+        statusHost.layoutSubtreeIfNeeded()
+        #expect(statusHost.fittingSize.height > 0)
+
         state.openConversation(selfUser.username)
         #expect(state.navigationPath == [.conversation("lucian")])
 
-        let otherUser = SubUser(followed: false, username: "subreply", fullName: "Subreply", firstName: "Subreply")
+        let otherUser = SubUser(
+            followed: false,
+            follows: true,
+            username: "subreply",
+            fullName: "Subreply",
+            firstName: "Subreply",
+            createdAt: now - 86400 * 30,
+            seenAt: now - 600
+        )
         let otherRow = UserRowView(member: .constant(otherUser), isMemberHeader: false)
         #expect(otherRow.followActionTitle == "Follow")
+
+        let otherStatusRow = MemberStatusRowView(member: .constant(otherUser))
+        #expect(otherStatusRow.followActionTitle == "FOLLOW")
 
         let followedUser = SubUser(followed: true, username: "subreply", fullName: "Subreply", firstName: "Subreply")
         let followedRow = UserRowView(member: .constant(followedUser), isMemberHeader: false)
         #expect(followedRow.followActionTitle == "Unfollow")
+
+        let followedStatusRow = MemberStatusRowView(member: .constant(followedUser))
+        #expect(followedStatusRow.followActionTitle == "UNFOLLOW")
+
+        let selfBanner = PlaceholderBannerView(text: "No reply yet", showsReplyIcon: true)
+        #expect(selfBanner.showsReplyIcon == true)
     }
 
     @MainActor
@@ -349,6 +380,14 @@ struct MacreplyTests {
         let view = MemberLinksView(links: links)
         let plainText = String(view.buildAttributedString().characters)
         #expect(plainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Spotify, Telephone and X.")
+
+        let donatedView = MemberLinksView(links: links, donated: 25.0)
+        let donatedPlainText = String(donatedView.buildAttributedString().characters)
+        #expect(donatedPlainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Spotify, Telephone and X. Donated $25.0.")
+
+        let donatedOnlyView = MemberLinksView(links: [], donated: 10.5)
+        let donatedOnlyPlainText = String(donatedOnlyView.buildAttributedString().characters)
+        #expect(donatedOnlyPlainText == "Donated $10.5.")
 
         let wideHost = NSHostingView(rootView: view.frame(width: 640))
         wideHost.layoutSubtreeIfNeeded()

@@ -28,17 +28,30 @@ public struct UserRowView: View {
         return member.followed ? "Unfollow" : "Follow"
     }
 
+    public var rightDateLabel: String {
+        if isMemberHeader {
+            if isSelf {
+                return member.createdAt > 0 ? ContentParser.timeAgo(since: member.createdAt) : member.timestamp
+            } else {
+                return member.seenAt > 0 ? ContentParser.timeAgo(since: member.seenAt) : member.timestamp
+            }
+        }
+        if !member.timestamp.isEmpty {
+            return member.timestamp
+        }
+        return member.createdAt > 0 ? ContentParser.timeAgo(since: member.createdAt) : ""
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
+            HStack(spacing: 0) {
                 Button {
                     appState.openMember(member.username)
                 } label: {
                     (
                         Text(member.fullName)
                             .foregroundStyle(.primary)
-                        + Text(" @\(member.username)")
-                            .foregroundStyle(SubTheme.gray)
+                        + (isMemberHeader ? Text(" @\(member.username)").foregroundStyle(SubTheme.gray) : Text(""))
                     )
                     .font(.system(size: 14, weight: .bold))
                     .lineLimit(1)
@@ -46,10 +59,10 @@ public struct UserRowView: View {
                 }
                 .buttonStyle(.subLink)
 
-                if appState.isAuthenticated {
-                    HStack(spacing: 6) {
-                        Text("•")
-                            .font(.system(size: 14, weight: .bold))
+                if !isMemberHeader && appState.isAuthenticated {
+                    HStack(spacing: 0) {
+                        Text(" • ")
+                            .font(.system(size: 14))
                             .foregroundStyle(SubTheme.gray)
 
                         if isSelf {
@@ -57,7 +70,7 @@ public struct UserRowView: View {
                                 appState.logout()
                             }
                             .font(.system(size: 14))
-                            .foregroundStyle(SubTheme.gray)
+                            .foregroundStyle(SubTheme.alert)
                             .buttonStyle(.subLink)
                         } else {
                             Button(followActionTitle) {
@@ -73,39 +86,20 @@ public struct UserRowView: View {
                     .layoutPriority(1)
                 }
 
-                Spacer(minLength: 0)
+                Spacer(minLength: 6)
 
-                if isMemberHeader {
+                let rightDate = rightDateLabel
+                if !rightDate.isEmpty {
                     Button {
-                        if appState.isAuthenticated {
-                            appState.openConversation(member.username)
-                        } else {
-                            appState.selectSection(.login)
-                        }
+                        appState.openMember(member.username)
                     } label: {
-                        Text("MESSAGE")
-                            .font(.system(size: 12, weight: .medium))
+                        Text(rightDate)
+                            .font(.system(size: 13))
                             .foregroundStyle(SubTheme.silver)
                     }
                     .buttonStyle(.subLink)
                     .fixedSize(horizontal: true, vertical: false)
                     .layoutPriority(1)
-                } else {
-                    let rightDate = !member.timestamp.isEmpty
-                        ? member.timestamp
-                        : (member.createdAt > 0 ? ContentParser.timeAgo(since: member.createdAt) : "")
-                    if !rightDate.isEmpty {
-                        Button {
-                            appState.openMember(member.username)
-                        } label: {
-                            Text(rightDate)
-                                .font(.system(size: 13))
-                                .foregroundStyle(SubTheme.silver)
-                        }
-                        .buttonStyle(.subLink)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(1)
-                    }
                 }
             }
 
@@ -228,18 +222,18 @@ public struct MemberView: View {
                     )
 
                     let links = member.allLinks
-                    if !links.isEmpty {
+                    if !links.isEmpty || member.donated > 0 {
                         Divider().overlay(SubTheme.whitesmoke)
-                        MemberLinksView(links: links)
+                        MemberLinksView(links: links, donated: member.donated)
                     }
 
-                    if member.createdAt > 0 {
-                        Divider().overlay(SubTheme.whitesmoke)
-                        Text(memberStatusLine(for: member))
-                            .font(.system(size: 13))
-                            .foregroundStyle(SubTheme.gray)
-                            .padding(.vertical, 6)
-                    }
+                    Divider().overlay(SubTheme.whitesmoke)
+                    MemberStatusRowView(
+                        member: Binding(
+                            get: { self.member ?? member },
+                            set: { self.member = $0 }
+                        )
+                    )
 
                     if isLoadingPosts && entries.isEmpty {
                         Divider().overlay(SubTheme.whitesmoke)
@@ -302,26 +296,6 @@ public struct MemberView: View {
         }
     }
 
-    private func memberStatusLine(for member: SubUser) -> String {
-        var parts: [String] = [
-            "Joined \(ContentParser.timeAgo(since: member.createdAt)) ago."
-        ]
-        if member.seenAt > 0 && member.seenAt != member.createdAt {
-            parts.append("Seen \(ContentParser.timeAgo(since: member.seenAt)) ago.")
-        }
-        if member.donated > 0 {
-            let formattedDonated = member.donated.truncatingRemainder(dividingBy: 1) == 0
-                ? String(format: "%.1f", member.donated)
-                : String(member.donated)
-            parts.append("Donated $\(formattedDonated).")
-        }
-        let isSelf = appState.currentUser?.username.lowercased() == member.username.lowercased()
-        if member.follows && !isSelf {
-            parts.append("Follows you.")
-        }
-        return parts.joined(separator: " ")
-    }
-
     private func loadMember(reset: Bool) async {
         guard !username.isEmpty else { return }
         let targetPage = reset ? 1 : currentPage + 1
@@ -380,14 +354,128 @@ public struct MemberView: View {
     }
 }
 
+/// Mirrors the `.small.caps` action row in `templates/common/status.html`
+public struct MemberStatusRowView: View {
+    @EnvironmentObject private var appState: AppState
+    @Binding public var member: SubUser
+
+    @State private var isFollowPending = false
+    @State private var followError = false
+
+    public init(member: Binding<SubUser>) {
+        self._member = member
+    }
+
+    private var isSelf: Bool {
+        guard let current = appState.currentUser?.username.lowercased() else { return false }
+        return current == member.username.lowercased()
+    }
+
+    public var followActionTitle: String {
+        if followError {
+            return "RETRY"
+        }
+        return member.followed ? "UNFOLLOW" : "FOLLOW"
+    }
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            if isSelf {
+                Button("NOTES") {
+                    appState.openConversation(member.username)
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(SubTheme.accent)
+                .buttonStyle(.subLink)
+
+                Button("EDIT") {
+                    appState.selectSection(.options)
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(SubTheme.gray)
+                .buttonStyle(.subLink)
+
+                Button("LOGOUT") {
+                    appState.logout()
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(SubTheme.alert)
+                .buttonStyle(.subLink)
+            } else {
+                Button("MESSAGE") {
+                    if appState.isAuthenticated {
+                        appState.openConversation(member.username)
+                    } else {
+                        appState.selectSection(.login)
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(SubTheme.accent)
+                .buttonStyle(.subLink)
+
+                Button(followActionTitle) {
+                    if appState.isAuthenticated {
+                        toggleFollow()
+                    } else {
+                        appState.selectSection(.login)
+                    }
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(followError ? SubTheme.alert : (member.followed ? SubTheme.gray : SubTheme.accent))
+                .buttonStyle(.subLink)
+                .disabled(isFollowPending)
+
+                if appState.isAuthenticated && member.follows {
+                    Text("FOLLOWS YOU")
+                        .font(.system(size: 12))
+                        .foregroundStyle(SubTheme.silver)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func toggleFollow() {
+        guard !isFollowPending else { return }
+        let target = !member.followed
+        let username = member.username
+        isFollowPending = true
+        Task {
+            do {
+                let confirmed = try await appState.apiClient.setFollowing(
+                    username: username,
+                    follow: target
+                )
+                member.followed = confirmed
+                followError = false
+            } catch {
+                followError = true
+            }
+            isFollowPending = false
+        }
+    }
+}
+
 public struct MemberLinksView: View {
     public let links: [(name: String, url: URL)]
+    public var donated: Double = 0
 
     @State private var viewWidth: CGFloat = SubTheme.contentWidth
     @State private var isHoveringLink: Bool = false
 
-    public init(links: [(name: String, url: URL)]) {
+    public init(links: [(name: String, url: URL)], donated: Double = 0) {
         self.links = links
+        self.donated = donated
+    }
+
+    private var donatedText: String? {
+        guard donated > 0 else { return nil }
+        let formatted = donated.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.1f", donated)
+            : String(donated)
+        return "Donated $\(formatted)."
     }
 
     public var body: some View {
@@ -431,29 +519,42 @@ public struct MemberLinksView: View {
     }
 
     public func buildAttributedString() -> AttributedString {
-        var attributed = AttributedString("Also on ")
-        attributed.font = .system(size: 13)
-        attributed.foregroundColor = SubTheme.gray
+        var attributed = AttributedString()
 
-        for idx in links.indices {
-            if idx > 0 {
-                var separator = AttributedString(idx == links.count - 1 ? " and " : ", ")
-                separator.font = .system(size: 13)
-                separator.foregroundColor = SubTheme.gray
-                attributed.append(separator)
+        if !links.isEmpty {
+            var prefix = AttributedString("Also on ")
+            prefix.font = .system(size: 13)
+            prefix.foregroundColor = SubTheme.gray
+            attributed.append(prefix)
+
+            for idx in links.indices {
+                if idx > 0 {
+                    var separator = AttributedString(idx == links.count - 1 ? " and " : ", ")
+                    separator.font = .system(size: 13)
+                    separator.foregroundColor = SubTheme.gray
+                    attributed.append(separator)
+                }
+
+                var linkPart = AttributedString(links[idx].name)
+                linkPart.font = .system(size: 13, weight: .medium)
+                linkPart.foregroundColor = SubTheme.gray
+                linkPart.link = links[idx].url
+                attributed.append(linkPart)
             }
 
-            var linkPart = AttributedString(links[idx].name)
-            linkPart.font = .system(size: 13, weight: .medium)
-            linkPart.foregroundColor = SubTheme.gray
-            linkPart.link = links[idx].url
-            attributed.append(linkPart)
+            var dot = AttributedString(".")
+            dot.font = .system(size: 13)
+            dot.foregroundColor = SubTheme.gray
+            attributed.append(dot)
         }
 
-        var dot = AttributedString(".")
-        dot.font = .system(size: 13)
-        dot.foregroundColor = SubTheme.gray
-        attributed.append(dot)
+        if let donatedText {
+            let prefixSpace = links.isEmpty ? "" : " "
+            var donatedPart = AttributedString(prefixSpace + donatedText)
+            donatedPart.font = .system(size: 13)
+            donatedPart.foregroundColor = SubTheme.gray
+            attributed.append(donatedPart)
+        }
 
         return attributed
     }
@@ -496,17 +597,24 @@ public struct MemberLinksView: View {
             .font: NSFont.systemFont(ofSize: 13, weight: .medium)
         ]
 
-        let result = NSMutableAttributedString(string: "Also on ", attributes: regularAttrs)
-        for idx in links.indices {
-            if idx > 0 {
-                let sep = idx == links.count - 1 ? " and " : ", "
-                result.append(NSAttributedString(string: sep, attributes: regularAttrs))
+        let result = NSMutableAttributedString()
+        if !links.isEmpty {
+            result.append(NSAttributedString(string: "Also on ", attributes: regularAttrs))
+            for idx in links.indices {
+                if idx > 0 {
+                    let sep = idx == links.count - 1 ? " and " : ", "
+                    result.append(NSAttributedString(string: sep, attributes: regularAttrs))
+                }
+                var attrs = linkAttrs
+                attrs[.link] = links[idx].url
+                result.append(NSAttributedString(string: links[idx].name, attributes: attrs))
             }
-            var attrs = linkAttrs
-            attrs[.link] = links[idx].url
-            result.append(NSAttributedString(string: links[idx].name, attributes: attrs))
+            result.append(NSAttributedString(string: ".", attributes: regularAttrs))
         }
-        result.append(NSAttributedString(string: ".", attributes: regularAttrs))
+        if let donatedText {
+            let prefixSpace = links.isEmpty ? "" : " "
+            result.append(NSAttributedString(string: prefixSpace + donatedText, attributes: regularAttrs))
+        }
 
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 3

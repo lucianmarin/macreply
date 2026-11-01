@@ -271,19 +271,22 @@ public struct PlaceholderBannerView: View {
     public var onAction: (() -> Void)? = nil
     public var secondaryActionLabel: String? = nil
     public var onSecondaryAction: (() -> Void)? = nil
+    public var showsReplyIcon: Bool = false
 
     public init(
         text: String,
         actionLabel: String? = nil,
         onAction: (() -> Void)? = nil,
         secondaryActionLabel: String? = nil,
-        onSecondaryAction: (() -> Void)? = nil
+        onSecondaryAction: (() -> Void)? = nil,
+        showsReplyIcon: Bool = false
     ) {
         self.text = text
         self.actionLabel = actionLabel
         self.onAction = onAction
         self.secondaryActionLabel = secondaryActionLabel
         self.onSecondaryAction = onSecondaryAction
+        self.showsReplyIcon = showsReplyIcon
     }
 
     public var body: some View {
@@ -307,6 +310,13 @@ public struct PlaceholderBannerView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(SubTheme.gray)
             Spacer(minLength: 0)
+            if showsReplyIcon {
+                Image(systemName: SidebarSection.replies.systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(SubTheme.gray)
+                    .scaleEffect(x: 1, y: -1)
+                    .frame(width: 16, height: 16)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

@@ -124,15 +124,18 @@ public struct ReplyDetailView: View {
                 actionLabel: "Login",
                 onAction: { appState.selectSection(.login) },
                 secondaryActionLabel: "register",
-                onSecondaryAction: { appState.selectSection(.register) }
+                onSecondaryAction: { appState.selectSection(.register) },
+                showsReplyIcon: true
             )
         } else if isOwnEntry {
             PlaceholderBannerView(
-                text: entry.replyCount == 0 && kids.isEmpty ? "No reply yet" : "Reply back to them"
+                text: entry.replyCount == 0 && kids.isEmpty ? "No reply yet" : "Reply back to them",
+                showsReplyIcon: true
             )
         } else if hasDuplicateReply {
             PlaceholderBannerView(
-                text: "Share reply #\(entry.id) anywhere"
+                text: "Share reply #\(entry.id) anywhere",
+                showsReplyIcon: true
             )
         } else {
             ComposerView(
