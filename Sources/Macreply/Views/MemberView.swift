@@ -115,7 +115,7 @@ public struct UserRowView: View {
                             openURL(url)
                         } label: {
                             Text(ContentParser.hostname(from: member.link))
-                                .font(.system(size: 13))
+                                .font(.system(size: 13, weight: .regular))
                                 .foregroundStyle(SubTheme.gray)
                         }
                         .buttonStyle(.subLink)
@@ -123,20 +123,20 @@ public struct UserRowView: View {
 
                     if let age = ContentParser.age(from: member.birthday) {
                         Text("~ \(age)y old")
-                            .font(.system(size: 13))
+                            .font(.system(size: 13, weight: .regular))
                             .foregroundStyle(SubTheme.gray)
                     }
 
                     if !member.cityLabel.isEmpty {
                         HStack(spacing: 3) {
                             Text("from")
-                                .font(.system(size: 13))
+                                .font(.system(size: 13, weight: .regular))
                                 .foregroundStyle(SubTheme.gray)
                             Button {
                                 appState.openLocationSearch(member.cityLabel)
                             } label: {
                                 Text(member.cityLabel)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.system(size: 13, weight: .regular))
                                     .foregroundStyle(SubTheme.gray)
                             }
                             .buttonStyle(.subLink)
@@ -536,7 +536,7 @@ public struct MemberLinksView: View {
                 }
 
                 var linkPart = AttributedString(links[idx].name)
-                linkPart.font = .system(size: 13, weight: .medium)
+                linkPart.font = .system(size: 13, weight: .regular)
                 linkPart.foregroundColor = SubTheme.gray
                 linkPart.link = links[idx].url
                 attributed.append(linkPart)
@@ -594,7 +594,7 @@ public struct MemberLinksView: View {
             .font: NSFont.systemFont(ofSize: 13, weight: .regular)
         ]
         let linkAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .medium)
+            .font: NSFont.systemFont(ofSize: 13, weight: .regular)
         ]
 
         let result = NSMutableAttributedString()
