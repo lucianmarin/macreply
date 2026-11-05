@@ -472,10 +472,7 @@ public struct MemberLinksView: View {
 
     private var donatedText: String? {
         guard donated > 0 else { return nil }
-        let formatted = donated.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.1f", donated)
-            : String(donated)
-        return "Donated $\(formatted)."
+        return "Donated $\(Int(donated.rounded()))."
     }
 
     public var body: some View {

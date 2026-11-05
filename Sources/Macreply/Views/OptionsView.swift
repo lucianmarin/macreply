@@ -43,7 +43,7 @@ public struct OptionsView: View {
     // Account / Server config
     @State private var serverURL: String = ""
     @State private var serverSavedNotice: Bool = false
-    @State private var pollingMinutesText: String = "2"
+    @State private var pollingMinutesText: String = "5"
     @State private var pollingSavedNotice: Bool = false
 
     public init() {}
@@ -230,7 +230,7 @@ public struct OptionsView: View {
             SubFormField(
                 label: "Notifications polling (minutes)",
                 required: false,
-                placeholder: "2",
+                placeholder: "5",
                 text: $pollingMinutesText
             ) {
                 saveNotificationPolling()
@@ -306,7 +306,7 @@ public struct OptionsView: View {
 
     private func saveNotificationPolling() {
         let trimmed = pollingMinutesText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let parsed = Int(trimmed) ?? 2
+        let parsed = Int(trimmed) ?? 5
         appState.updateNotificationPollingMinutes(parsed)
         pollingMinutesText = String(appState.notificationPollingMinutes)
         pollingSavedNotice = true

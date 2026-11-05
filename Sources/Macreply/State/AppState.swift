@@ -204,7 +204,7 @@ public final class AppState: ObservableObject {
         self.currentUser = savedUser
         self.currentEmail = !(savedUser?.email.isEmpty ?? true) ? (savedUser?.email ?? "") : savedEmail
         self.notifications = savedNotifications
-        self.notificationPollingMinutes = savedPolling > 0 ? savedPolling : 2
+        self.notificationPollingMinutes = savedPolling > 0 ? savedPolling : 5
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
         self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)

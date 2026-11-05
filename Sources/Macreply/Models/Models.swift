@@ -107,7 +107,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var allLinks: [(name: String, url: URL)] {
         var combined = social
         if let code = phone["code"], let number = phone["number"], !code.isEmpty, !number.isEmpty {
-            combined["telephone"] = code + number
+            combined["phone"] = code + number
         }
         let templates: [String: (String, String)] = [
             "dribbble": ("Dribbble", "https://dribbble.com/%@"),
@@ -118,10 +118,10 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
             "paypal": ("PayPal", "https://paypal.me/%@"),
             "pinboard": ("Pinboard", "https://pinboard.in/u:%@/"),
             "reddit": ("Reddit", "https://reddit.com/u/%@"),
+            "phone": ("Phone", "tel:%@"),
             "soundcloud": ("SoundCloud", "https://soundcloud.com/%@"),
             "spotify": ("Spotify", "https://open.spotify.com/user/%@"),
             "telegram": ("Telegram", "https://t.me/%@"),
-            "telephone": ("Telephone", "tel:%@"),
             "twitter": ("Twitter", "https://twitter.com/%@"),
             "x": ("X", "https://x.com/%@"),
             "youtube": ("YouTube", "https://youtube.com/@%@")

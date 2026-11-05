@@ -598,7 +598,7 @@ public struct RefreshableScrollView<Content: View>: View {
                     } else {
                         Image(systemName: pullOffset >= triggerThreshold ? "arrow.up" : "arrow.down")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(SubTheme.gray)
+                            .foregroundStyle(SubTheme.accent)
                     }
                     Text(statusLabel)
                         .font(.system(size: 12, weight: .medium))

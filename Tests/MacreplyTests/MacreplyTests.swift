@@ -80,7 +80,7 @@ struct MacreplyTests {
         #expect(entry.kids?[0].replyLabel == "2 replies")
         #expect(entry.streamKids.map(\.id) == [102, 103, 104, 105, 106])
         #expect(entry.createdBy.cityLabel == "Bucharest")
-        #expect(entry.createdBy.allLinks.map(\.name) == ["GitHub", "Telephone", "X"])
+        #expect(entry.createdBy.allLinks.map(\.name) == ["GitHub", "Phone", "X"])
     }
 
     @MainActor
@@ -131,11 +131,11 @@ struct MacreplyTests {
         let state = AppState(defaults: defaults)
         #expect(state.notifications.total == 0)
         #expect(state.dockBadgeLabel == nil)
-        #expect(state.notificationPollingMinutes == 2)
-
-        state.updateNotificationPollingMinutes(5)
         #expect(state.notificationPollingMinutes == 5)
-        #expect(defaults.integer(forKey: "macreply.config.notificationPollingMinutes") == 5)
+
+        state.updateNotificationPollingMinutes(10)
+        #expect(state.notificationPollingMinutes == 10)
+        #expect(defaults.integer(forKey: "macreply.config.notificationPollingMinutes") == 10)
 
         state.notifications = SubNotifications(followers: 2, mentions: 3, replies: 4, messages: 1)
         #expect(state.notifications.total == 10)
@@ -375,19 +375,19 @@ struct MacreplyTests {
         )
 
         let links = lucian.allLinks
-        #expect(links.map(\.name) == ["GitHub", "Instagram", "LinkedIn", "PayPal", "Spotify", "Telephone", "X"])
+        #expect(links.map(\.name) == ["GitHub", "Instagram", "LinkedIn", "PayPal", "Phone", "Spotify", "X"])
 
         let view = MemberLinksView(links: links)
         let plainText = String(view.buildAttributedString().characters)
-        #expect(plainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Spotify, Telephone and X.")
+        #expect(plainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Phone, Spotify and X.")
 
         let donatedView = MemberLinksView(links: links, donated: 25.0)
         let donatedPlainText = String(donatedView.buildAttributedString().characters)
-        #expect(donatedPlainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Spotify, Telephone and X. Donated $25.0.")
+        #expect(donatedPlainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Phone, Spotify and X. Donated $25.")
 
         let donatedOnlyView = MemberLinksView(links: [], donated: 10.5)
         let donatedOnlyPlainText = String(donatedOnlyView.buildAttributedString().characters)
-        #expect(donatedOnlyPlainText == "Donated $10.5.")
+        #expect(donatedOnlyPlainText == "Donated $11.")
 
         let wideHost = NSHostingView(rootView: view.frame(width: 640))
         wideHost.layoutSubtreeIfNeeded()
