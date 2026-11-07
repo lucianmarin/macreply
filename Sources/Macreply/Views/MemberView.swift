@@ -381,7 +381,7 @@ public struct MemberStatusRowView: View {
     public var body: some View {
         HStack(spacing: 10) {
             if isSelf {
-                Button("NOTES") {
+                Button("NOTE") {
                     appState.openConversation(member.username)
                 }
                 .font(.system(size: 12))
