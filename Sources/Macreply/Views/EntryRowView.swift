@@ -459,13 +459,11 @@ public struct StreamEntryView: View {
                     InlineParentRowView(entry: parent)
                 }
 
-                VStack(alignment: .leading, spacing: 0) {
-                    Divider().overlay(SubTheme.whitesmoke)
-                    EntryItemView(
-                        entry: $entry,
-                        isRootOverride: false
-                    )
-                }
+                Divider().overlay(SubTheme.whitesmoke)
+                EntryItemView(
+                    entry: $entry,
+                    isRootOverride: false
+                )
                 .padding(.leading, SubTheme.indent)
             } else {
                 if !isFirstInList {
@@ -478,17 +476,15 @@ public struct StreamEntryView: View {
 
                 let recentKids = entry.streamKids
                 if !recentKids.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(recentKids.indices, id: \.self) { index in
-                            Divider().overlay(SubTheme.whitesmoke)
-                            KidEntryBindingRow(
-                                parentEntry: $entry,
-                                kidID: recentKids[index].id,
-                                canDeleteAsRecipient: true
-                            )
-                        }
+                    ForEach(recentKids.indices, id: \.self) { index in
+                        Divider().overlay(SubTheme.whitesmoke)
+                        KidEntryBindingRow(
+                            parentEntry: $entry,
+                            kidID: recentKids[index].id,
+                            canDeleteAsRecipient: true
+                        )
+                        .padding(.leading, SubTheme.indent)
                     }
-                    .padding(.leading, SubTheme.indent)
                 }
             }
         }

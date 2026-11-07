@@ -198,17 +198,15 @@ private struct ThreadNodeView: View {
             )
 
             if let nestedKids = entry.kids, !nestedKids.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(nestedKids.indices, id: \.self) { index in
-                        Divider().overlay(SubTheme.whitesmoke)
-                        KidEntryBindingRow(
-                            parentEntry: $entry,
-                            kidID: nestedKids[index].id,
-                            canDeleteAsRecipient: true
-                        )
-                    }
+                ForEach(nestedKids.indices, id: \.self) { index in
+                    Divider().overlay(SubTheme.whitesmoke)
+                    KidEntryBindingRow(
+                        parentEntry: $entry,
+                        kidID: nestedKids[index].id,
+                        canDeleteAsRecipient: true
+                    )
+                    .padding(.leading, SubTheme.indent)
                 }
-                .padding(.leading, SubTheme.indent)
             }
         }
     }
