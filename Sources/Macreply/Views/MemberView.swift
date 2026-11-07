@@ -66,11 +66,11 @@ public struct UserRowView: View {
                             .foregroundStyle(SubTheme.gray)
 
                         if isSelf {
-                            Button("Logout") {
-                                appState.logout()
+                            Button("Edit") {
+                                appState.selectSection(.options)
                             }
                             .font(.system(size: 14))
-                            .foregroundStyle(SubTheme.alert)
+                            .foregroundStyle(SubTheme.gray)
                             .buttonStyle(.subLink)
                         } else {
                             Button(followActionTitle) {
