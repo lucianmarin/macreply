@@ -149,7 +149,7 @@ public struct RegisterView: View {
                 errorView(keys: ["emoji", "birthday", "location", "general"])
 
                 HStack {
-                    Text("You agree with Subreply's Privacy and Terms.")
+                    Text("You agree with Privacy, Safety and Terms.")
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.gray)
                     Spacer()

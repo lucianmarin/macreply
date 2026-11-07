@@ -28,7 +28,7 @@ public struct FeedView: View {
                 if section == .feed {
                     if appState.isAuthenticated {
                         ComposerView(
-                            placeholder: "Say something",
+                            placeholder: "Start a thread",
                             focusTrigger: appState.feedRefreshTrigger
                         ) { content in
                             let created = try await appState.apiClient.createThread(content: content)
@@ -45,7 +45,7 @@ public struct FeedView: View {
                     }
                 } else if section == .discover {
                     SearchQueryBar(
-                        placeholder: "Search content",
+                        placeholder: "Search topics",
                         query: $searchQuery,
                         focusTrigger: appState.feedRefreshTrigger
                     ) {
