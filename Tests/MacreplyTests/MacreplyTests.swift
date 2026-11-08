@@ -645,4 +645,144 @@ struct MacreplyTests {
             _ = try await client.clearConversation(username: "unknown")
         }
     }
+
+    @Test("EndpointCache only caches first page without q or p>1 parameters and treats ?p=1 as plain endpoint")
+    func testEndpointCacheKeyAndFiltering() async throws {
+        let suiteName = "macreply.cache.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        final class MockCacheProtocol: URLProtocol, @unchecked Sendable {
+            nonisolated(unsafe) static var handler: ((URLRequest) -> Data)?
+            nonisolated(unsafe) static var requestedURLs: [String] = []
+
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+            override func startLoading() {
+                let url = request.url!
+                Self.requestedURLs.append(url.absoluteString)
+                let data = Self.handler?(request) ?? Data("{}".utf8)
+                let http = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            }
+
+            override func stopLoading() {}
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockCacheProtocol.self]
+        let session = URLSession(configuration: config)
+        let cache = EndpointCache(defaults: defaults)
+        let client = APIClient(baseURLString: "https://subreply.com/api", token: "tok", session: session, cache: cache)
+
+        let author = SubUser(username: "lucian", fullName: "Lucian", firstName: "Lucian")
+        let page1Entry = SubEntry(id: 10, content: "Page 1 content", createdBy: author)
+        let page2Entry = SubEntry(id: 20, content: "Page 2 content", createdBy: author)
+        let searchEntry = SubEntry(id: 30, content: "Search content", createdBy: author)
+
+        MockCacheProtocol.requestedURLs = []
+        MockCacheProtocol.handler = { req in
+            let urlStr = req.url?.absoluteString ?? ""
+            if urlStr.contains("p=2") {
+                return try! JSONEncoder().encode(PaginatedEntriesResponse(page: 2, entries: [page2Entry]))
+            }
+            if urlStr.contains("q=swift") {
+                return try! JSONEncoder().encode(PaginatedEntriesResponse(page: 1, entries: [searchEntry]))
+            }
+            return try! JSONEncoder().encode(PaginatedEntriesResponse(page: 1, entries: [page1Entry]))
+        }
+
+        // 1. Plain endpoint call (?p=1 equivalent) caches under /discover
+        let fetched1 = try await client.fetchEntries(path: "/discover?p=1", page: 1, query: nil)
+        #expect(fetched1.entries.first?.content == "Page 1 content")
+        #expect(MockCacheProtocol.requestedURLs.last == "https://subreply.com/api/discover")
+        #expect(client.cachedEntries(path: "/discover")?.entries.first?.id == 10)
+        #expect(client.cachedEntries(path: "/discover?p=1")?.entries.first?.id == 10)
+
+        // 2. Page 2 (?p=2) is NOT cached and does not overwrite page 1 cache
+        let fetched2 = try await client.fetchEntries(path: "/discover", page: 2, query: nil)
+        #expect(fetched2.entries.first?.id == 20)
+        #expect(client.cachedEntries(path: "/discover", page: 2) == nil)
+        #expect(client.cachedEntries(path: "/discover?p=2") == nil)
+        #expect(client.cachedEntries(path: "/discover")?.entries.first?.id == 10)
+
+        // 3. Search query (?q=swift) is NOT cached and does not overwrite page 1 cache
+        let fetchedSearch = try await client.fetchEntries(path: "/discover", page: 1, query: "swift")
+        #expect(fetchedSearch.entries.first?.id == 30)
+        #expect(client.cachedEntries(path: "/discover", page: 1, query: "swift") == nil)
+        #expect(client.cachedEntries(path: "/discover?q=swift") == nil)
+        #expect(client.cachedEntries(path: "/discover")?.entries.first?.id == 10)
+    }
+
+    @Test("Views draw cached content on first paint and replace in place when live endpoint responds, and logout clears caches")
+    @MainActor
+    func testFirstPaintCacheAndInPlaceReplacementAndLogout() async throws {
+        let suiteName = "macreply.firstpaint.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        final class MockLiveProtocol: URLProtocol, @unchecked Sendable {
+            nonisolated(unsafe) static var feedContent: String = "Live feed post"
+
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+            override func startLoading() {
+                let url = request.url!
+                let author = SubUser(username: "lucian", fullName: "Lucian", firstName: "Lucian")
+                let liveEntry = SubEntry(id: 101, content: Self.feedContent, createdBy: author)
+                let response = PaginatedEntriesResponse(page: 1, entries: [liveEntry])
+                let data = (try? JSONEncoder().encode(response)) ?? Data("{}".utf8)
+                let http = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocol(self, didLoad: data)
+                client?.urlProtocolDidFinishLoading(self)
+            }
+
+            override func stopLoading() {}
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockLiveProtocol.self]
+        let session = URLSession(configuration: config)
+        let cache = EndpointCache(defaults: defaults)
+        let apiClient = APIClient(baseURLString: "https://subreply.com/api", token: "tok", session: session, cache: cache)
+
+        let author = SubUser(username: "lucian", fullName: "Lucian", firstName: "Lucian")
+        let cachedEntry = SubEntry(id: 100, content: "Cached first paint post", createdBy: author)
+        cache.store(PaginatedEntriesResponse(page: 1, entries: [cachedEntry]), forPath: "/trending")
+        cache.store(PaginatedUsersResponse(page: 1, entries: [author]), forPath: "/people")
+        cache.store(MemberResponse(member: author), forPath: "/lucian")
+        cache.store(PaginatedEntriesResponse(page: 1, entries: [cachedEntry]), forPath: "/lucian/posts")
+        cache.store(ReplyDetailResponse(entry: cachedEntry, ancestors: [], kids: [], duplicate: false), forPath: "/reply/100")
+        cache.store(PaginatedChatsResponse(page: 1, entries: []), forPath: "/messages")
+
+        let state = AppState(defaults: defaults, apiClient: apiClient)
+        let feedView = FeedView(section: .trending).environmentObject(state)
+        let host = NSHostingView(rootView: feedView)
+        host.frame = NSRect(x: 0, y: 0, width: 600, height: 600)
+
+        // First paint before async network task completes still has cached data available synchronously
+        #expect(state.apiClient.cachedEntries(path: "/trending")?.entries.first?.content == "Cached first paint post")
+        host.layoutSubtreeIfNeeded()
+
+        // Once live endpoint finishes, cache is updated in place with live data
+        let liveFetched = try await state.apiClient.fetchEntries(path: "/trending", page: 1)
+        #expect(liveFetched.entries.first?.content == "Live feed post")
+        #expect(state.apiClient.cachedEntries(path: "/trending")?.entries.first?.content == "Live feed post")
+
+        // Logging out clears all endpoint caches in memory and UserDefaults
+        state.logout()
+        #expect(state.apiClient.cachedEntries(path: "/trending") == nil)
+        #expect(state.apiClient.cachedUsers(path: "/people") == nil)
+        #expect(state.apiClient.cachedMemberDetail(username: "lucian") == nil)
+        #expect(state.apiClient.cachedMemberPosts(username: "lucian") == nil)
+        #expect(state.apiClient.cachedReplyDetail(id: 100) == nil)
+        #expect(state.apiClient.cachedMessages() == nil)
+        let remainingCacheKeys = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix(EndpointCache.keyPrefix) }
+        #expect(remainingCacheKeys.isEmpty)
+    }
 }

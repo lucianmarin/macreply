@@ -180,7 +180,10 @@ public final class AppState: ObservableObject {
         token != nil && currentUser != nil
     }
 
-    public init(defaults: UserDefaults = .standard) {
+    public init(
+        defaults: UserDefaults = .standard,
+        apiClient: APIClient? = nil
+    ) {
         self.defaults = defaults
         let savedBaseURL = defaults.string(forKey: StorageKeys.apiBaseURL) ?? "https://subreply.com/api"
         let savedToken = defaults.string(forKey: StorageKeys.token)
@@ -192,11 +195,15 @@ public final class AppState: ObservableObject {
             savedUser = try? JSONDecoder().decode(SubUser.self, from: userData)
         }
 
+        let cache = apiClient?.cache ?? EndpointCache(defaults: defaults)
         var savedNotifications = SubNotifications()
-        if savedToken != nil, savedUser != nil,
-           let notificationsData = defaults.data(forKey: StorageKeys.notifications),
-           let decodedNotifications = try? JSONDecoder().decode(SubNotifications.self, from: notificationsData) {
-            savedNotifications = decodedNotifications
+        if savedToken != nil, savedUser != nil {
+            if let cachedNotifications = cache.load(SubNotifications.self, forPath: "/notifications") {
+                savedNotifications = cachedNotifications
+            } else if let notificationsData = defaults.data(forKey: StorageKeys.notifications),
+                      let decodedNotifications = try? JSONDecoder().decode(SubNotifications.self, from: notificationsData) {
+                savedNotifications = decodedNotifications
+            }
         }
 
         self.apiBaseURL = APIClient.normalizeBaseURL(savedBaseURL)
@@ -207,7 +214,7 @@ public final class AppState: ObservableObject {
         self.notificationPollingMinutes = savedPolling > 0 ? savedPolling : 5
         self.isCompactSidebar = defaults.bool(forKey: StorageKeys.compactSidebar)
         self.selectedSection = (savedToken != nil && savedUser != nil) ? .feed : .trending
-        self.apiClient = APIClient(baseURLString: savedBaseURL, token: savedToken)
+        self.apiClient = apiClient ?? APIClient(baseURLString: savedBaseURL, token: savedToken, cache: cache)
 
         configureUserNotificationsIfAvailable()
         if isAuthenticated {
@@ -334,6 +341,7 @@ public final class AppState: ObservableObject {
         notifications = SubNotifications()
         hasMessages = false
         deliveredNotificationMessages.removeAll()
+        apiClient.clearCache()
         persistSession()
         Task {
             await apiClient.setConfiguration(baseURLString: apiBaseURL, token: nil)
@@ -503,6 +511,7 @@ public final class AppState: ObservableObject {
             return
         }
         defaults.set(data, forKey: StorageKeys.notifications)
+        apiClient.cache.storeData(data, forPath: "/notifications")
     }
 }
 

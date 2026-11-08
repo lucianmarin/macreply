@@ -5,6 +5,7 @@ public struct MessagesInboxView: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var chats: [SubChat] = []
+    @State private var hasLoadedOnce: Bool = false
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = false
@@ -16,13 +17,34 @@ public struct MessagesInboxView: View {
 
     public init() {}
 
+    private var cachedResponse: PaginatedChatsResponse? {
+        appState.apiClient.cachedMessages(page: 1)
+    }
+
+    private var displayedChats: [SubChat] {
+        if hasLoadedOnce {
+            return chats
+        }
+        return cachedResponse?.entries ?? []
+    }
+
+    private var displayedCanLoadMore: Bool {
+        if hasLoadedOnce {
+            return canLoadMore
+        }
+        return (cachedResponse?.entries.count ?? 0) == pageSize
+    }
+
     public var body: some View {
         RefreshableScrollView {
             await loadInbox(reset: true)
             await appState.refreshNotifications()
         } content: {
             VStack(alignment: .leading, spacing: 0) {
-                if isLoading && chats.isEmpty {
+                let visibleChats = displayedChats
+                let isWaitingForFirstLoad = (isLoading || (!hasLoadedOnce && cachedResponse == nil))
+
+                if visibleChats.isEmpty && isWaitingForFirstLoad && errorMessage == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -32,7 +54,7 @@ public struct MessagesInboxView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
-                } else if let errorMessage, chats.isEmpty {
+                } else if let errorMessage, visibleChats.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(errorMessage)
                             .font(.system(size: 13))
@@ -45,21 +67,21 @@ public struct MessagesInboxView: View {
                         .foregroundStyle(SubTheme.accent)
                     }
                     .padding(.vertical, 12)
-                } else if chats.isEmpty {
+                } else if visibleChats.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
                         .padding(.vertical, 12)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(chats.indices, id: \.self) { index in
+                        ForEach(visibleChats.indices, id: \.self) { index in
                             if index > 0 {
                                 Divider().overlay(SubTheme.whitesmoke)
                             }
-                            MessageInboxRow(chat: chats[index])
+                            MessageInboxRow(chat: visibleChats[index])
                         }
 
-                        if canLoadMore {
+                        if displayedCanLoadMore {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack {
                                 Spacer()
@@ -84,12 +106,24 @@ public struct MessagesInboxView: View {
         }
         .background(SubTheme.background)
         .task(id: appState.feedRefreshTrigger) {
+            if !hasLoadedOnce, let cached = cachedResponse {
+                chats = cached.entries
+                currentPage = cached.page
+                canLoadMore = cached.entries.count == pageSize
+                hasLoadedOnce = true
+            }
             await loadInbox(reset: true)
         }
     }
 
     private func loadInbox(reset: Bool) async {
         if reset {
+            if !hasLoadedOnce, let cached = cachedResponse {
+                chats = cached.entries
+                currentPage = cached.page
+                canLoadMore = cached.entries.count == pageSize
+                hasLoadedOnce = true
+            }
             isLoading = true
             errorMessage = nil
             loadMoreError = false
@@ -104,11 +138,13 @@ public struct MessagesInboxView: View {
             } else {
                 chats.append(contentsOf: response.entries)
             }
+            hasLoadedOnce = true
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
             loadMoreError = false
         } catch {
             if reset {
+                hasLoadedOnce = true
                 errorMessage = error.localizedDescription
             } else {
                 loadMoreError = true
@@ -162,6 +198,8 @@ public struct ConversationView: View {
     public let username: String
 
     @State private var messages: [SubChat] = []
+    @State private var loadedUsername: String?
+    @State private var hasLoadedOnce: Bool = false
     @State private var isBlockedFromServer: Bool?
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
@@ -180,21 +218,47 @@ public struct ConversationView: View {
         self.username = username
     }
 
+    private var cleanUsername: String {
+        username.lowercased()
+    }
+
+    private var cachedResponse: PaginatedChatsResponse? {
+        appState.apiClient.cachedConversation(username: cleanUsername, page: 1)
+    }
+
+    private var displayedMessages: [SubChat] {
+        if loadedUsername == cleanUsername && hasLoadedOnce {
+            return messages
+        }
+        return cachedResponse?.entries ?? []
+    }
+
+    private var displayedCanLoadMore: Bool {
+        if loadedUsername == cleanUsername && hasLoadedOnce {
+            return canLoadMore
+        }
+        return (cachedResponse?.entries.count ?? 0) == pageSize
+    }
+
     private var isBlockedWaitingForResponse: Bool {
-        if let isBlockedFromServer {
+        if loadedUsername == cleanUsername, let isBlockedFromServer {
             return isBlockedFromServer
         }
-        guard let current = appState.currentUser?.username.lowercased(), !messages.isEmpty else {
+        if let blocked = cachedResponse?.blocked {
+            return blocked
+        }
+        let visibleMessages = displayedMessages
+        guard let current = appState.currentUser?.username.lowercased(), !visibleMessages.isEmpty else {
             return false
         }
-        let hasForward = messages.contains { $0.createdBy.username.lowercased() == current }
-        let hasBackward = messages.contains { $0.createdBy.username.lowercased() == username.lowercased() }
-        return hasForward && !hasBackward && current != username.lowercased()
+        let hasForward = visibleMessages.contains { $0.createdBy.username.lowercased() == current }
+        let hasBackward = visibleMessages.contains { $0.createdBy.username.lowercased() == cleanUsername }
+        return hasForward && !hasBackward && current != cleanUsername
     }
 
     private var isSelfConversation: Bool {
         guard let current = appState.currentUser?.username.lowercased() else { return false }
-        return current == username.lowercased()
+        return current == cleanUsername
     }
 
     public var messagePlaceholder: String {
@@ -206,6 +270,9 @@ public struct ConversationView: View {
             await loadConversation(reset: true)
         } content: {
             VStack(alignment: .leading, spacing: 0) {
+                let visibleMessages = displayedMessages
+                let isWaitingForFirstLoad = (isLoading && (loadedUsername != cleanUsername || !hasLoadedOnce) && cachedResponse == nil)
+
                 if isBlockedWaitingForResponse {
                     PlaceholderBannerView(
                         text: "Please wait for @\(username) to respond"
@@ -219,11 +286,16 @@ public struct ConversationView: View {
                             username: username,
                             content: content
                         )
+                        if loadedUsername != cleanUsername || !hasLoadedOnce {
+                            messages = visibleMessages
+                            loadedUsername = cleanUsername
+                            hasLoadedOnce = true
+                        }
                         messages.insert(sent, at: 0)
                         appState.hasMessages = true
                         if let current = appState.currentUser?.username.lowercased(),
-                           current != username.lowercased() {
-                            let hasBackward = messages.contains { $0.createdBy.username.lowercased() == username.lowercased() }
+                           current != cleanUsername {
+                            let hasBackward = messages.contains { $0.createdBy.username.lowercased() == cleanUsername }
                             isBlockedFromServer = !hasBackward
                         }
                         isCleared = false
@@ -231,7 +303,7 @@ public struct ConversationView: View {
                     }
                 }
 
-                if isLoading && messages.isEmpty {
+                if visibleMessages.isEmpty && isWaitingForFirstLoad && errorMessage == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -241,26 +313,26 @@ public struct ConversationView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
-                } else if let errorMessage, messages.isEmpty {
+                } else if let errorMessage, visibleMessages.isEmpty {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
                         .padding(.vertical, 12)
-                } else if messages.isEmpty {
+                } else if visibleMessages.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
                         .padding(.vertical, 12)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(messages.indices, id: \.self) { index in
+                        ForEach(visibleMessages.indices, id: \.self) { index in
                             if index > 0 {
                                 Divider().overlay(SubTheme.whitesmoke)
                             }
-                            ConversationMessageRow(chat: messages[index])
+                            ConversationMessageRow(chat: visibleMessages[index])
                         }
 
-                        if canLoadMore {
+                        if displayedCanLoadMore {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack {
                                 Spacer()
@@ -324,13 +396,37 @@ public struct ConversationView: View {
             .subFeedContainer()
         }
         .background(SubTheme.background)
-        .task(id: "\(username.lowercased())-\(appState.feedRefreshTrigger.uuidString)") {
+        .task(id: "\(cleanUsername)-\(appState.feedRefreshTrigger.uuidString)") {
+            applyCachedConversationIfNeeded()
             await loadConversation(reset: true)
+        }
+    }
+
+    private func applyCachedConversationIfNeeded() {
+        if loadedUsername != cleanUsername {
+            loadedUsername = cleanUsername
+            if let cached = cachedResponse {
+                messages = cached.entries
+                isBlockedFromServer = cached.blocked
+                currentPage = cached.page
+                canLoadMore = cached.entries.count == pageSize
+                hasLoadedOnce = true
+                appState.hasMessages = !cached.entries.isEmpty
+            } else {
+                messages = []
+                isBlockedFromServer = nil
+                currentPage = 1
+                canLoadMore = false
+                hasLoadedOnce = false
+            }
         }
     }
 
     private func loadConversation(reset: Bool) async {
         if reset {
+            if loadedUsername != cleanUsername || !hasLoadedOnce {
+                applyCachedConversationIfNeeded()
+            }
             isLoading = true
             errorMessage = nil
             loadMoreError = false
@@ -352,6 +448,8 @@ public struct ConversationView: View {
             } else {
                 messages.append(contentsOf: response.entries)
             }
+            loadedUsername = cleanUsername
+            hasLoadedOnce = true
             appState.hasMessages = !messages.isEmpty
             if let blocked = response.blocked {
                 isBlockedFromServer = blocked
@@ -362,6 +460,7 @@ public struct ConversationView: View {
             await appState.refreshNotifications()
         } catch {
             if reset {
+                hasLoadedOnce = true
                 errorMessage = error.localizedDescription
             } else {
                 loadMoreError = true

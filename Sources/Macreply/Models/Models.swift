@@ -374,37 +374,70 @@ public struct SubNotifications: Codable, Equatable, Sendable {
 
 // MARK: - API Responses
 
-public struct PaginatedEntriesResponse: Codable, Sendable {
+public struct PaginatedEntriesResponse: Codable, Equatable, Sendable {
     public let page: Int
     public let entries: [SubEntry]
+
+    public init(page: Int, entries: [SubEntry]) {
+        self.page = page
+        self.entries = entries
+    }
 }
 
-public struct PaginatedUsersResponse: Codable, Sendable {
+public struct PaginatedUsersResponse: Codable, Equatable, Sendable {
     public let page: Int
     public let entries: [SubUser]
+
+    public init(page: Int, entries: [SubUser]) {
+        self.page = page
+        self.entries = entries
+    }
 }
 
-public struct PaginatedChatsResponse: Codable, Sendable {
+public struct PaginatedChatsResponse: Codable, Equatable, Sendable {
     public let page: Int
     public let blocked: Bool?
     public let entries: [SubChat]
+
+    public init(page: Int, blocked: Bool? = nil, entries: [SubChat]) {
+        self.page = page
+        self.blocked = blocked
+        self.entries = entries
+    }
 }
 
-public struct MemberResponse: Codable, Sendable {
+public struct MemberResponse: Codable, Equatable, Sendable {
     public let member: SubUser
+
+    public init(member: SubUser) {
+        self.member = member
+    }
 }
 
-public struct MemberFeedResponse: Codable, Sendable {
+public struct MemberFeedResponse: Codable, Equatable, Sendable {
     public let page: Int
     public let member: SubUser
     public let entries: [SubEntry]
+
+    public init(page: Int, member: SubUser, entries: [SubEntry]) {
+        self.page = page
+        self.member = member
+        self.entries = entries
+    }
 }
 
-public struct ReplyDetailResponse: Codable, Sendable {
+public struct ReplyDetailResponse: Codable, Equatable, Sendable {
     public let entry: SubEntry
     public let ancestors: [SubEntry]
     public let kids: [SubEntry]
     public let duplicate: Bool?
+
+    public init(entry: SubEntry, ancestors: [SubEntry], kids: [SubEntry], duplicate: Bool? = nil) {
+        self.entry = entry
+        self.ancestors = ancestors
+        self.kids = kids
+        self.duplicate = duplicate
+    }
 }
 
 public struct AuthResponse: Codable, Sendable {

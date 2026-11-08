@@ -8,6 +8,7 @@ public struct ReplyDetailView: View {
     @State private var ancestors: [SubEntry] = []
     @State private var mainEntry: SubEntry?
     @State private var kids: [SubEntry] = []
+    @State private var loadedReplyID: Int?
     @State private var duplicateFromServer: Bool?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -16,20 +17,53 @@ public struct ReplyDetailView: View {
         self.replyID = replyID
     }
 
+    private var cachedResponse: ReplyDetailResponse? {
+        appState.apiClient.cachedReplyDetail(id: replyID)
+    }
+
+    private var displayedMainEntry: SubEntry? {
+        if loadedReplyID == replyID, let mainEntry {
+            return mainEntry
+        }
+        guard let cached = cachedResponse else { return nil }
+        var hydrated = cached.entry
+        if hydrated.kids == nil {
+            hydrated.kids = cached.kids
+        }
+        return hydrated
+    }
+
+    private var displayedAncestors: [SubEntry] {
+        if loadedReplyID == replyID && mainEntry != nil {
+            return ancestors
+        }
+        return cachedResponse?.ancestors ?? []
+    }
+
+    private var displayedKids: [SubEntry] {
+        if loadedReplyID == replyID && mainEntry != nil {
+            return kids
+        }
+        return cachedResponse?.kids ?? []
+    }
+
     private var isOwnEntry: Bool {
         guard let current = appState.currentUser?.username.lowercased(),
-              let author = mainEntry?.createdBy.username.lowercased() else {
+              let author = displayedMainEntry?.createdBy.username.lowercased() else {
             return false
         }
         return current == author
     }
 
     private var hasDuplicateReply: Bool {
-        if let duplicateFromServer {
+        if loadedReplyID == replyID, let duplicateFromServer {
             return duplicateFromServer
         }
+        if let duplicate = cachedResponse?.duplicate {
+            return duplicate
+        }
         guard let current = appState.currentUser?.username.lowercased() else { return false }
-        return kids.contains { $0.createdBy.username.lowercased() == current }
+        return displayedKids.contains { $0.createdBy.username.lowercased() == current }
     }
 
     public var body: some View {
@@ -38,7 +72,11 @@ public struct ReplyDetailView: View {
             await appState.refreshNotifications()
         } content: {
             VStack(alignment: .leading, spacing: 0) {
-                if isLoading && mainEntry == nil {
+                let visibleEntry = displayedMainEntry
+                let visibleAncestors = displayedAncestors
+                let visibleKids = displayedKids
+
+                if isLoading && visibleEntry == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -48,31 +86,44 @@ public struct ReplyDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
-                } else if let errorMessage, mainEntry == nil {
+                } else if let errorMessage, visibleEntry == nil {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
                         .padding(.vertical, 12)
-                } else if var entry = mainEntry {
+                } else if var entry = visibleEntry {
                     // Ancestors chain + Focus Entry
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(ancestors.indices, id: \.self) { index in
+                        ForEach(visibleAncestors.indices, id: \.self) { index in
                             if index > 0 {
                                 Divider().overlay(SubTheme.whitesmoke)
                             }
+                            let ancestorBinding = Binding<SubEntry>(
+                                get: {
+                                    let currentAncestors = displayedAncestors
+                                    return index < currentAncestors.count ? currentAncestors[index] : visibleAncestors[index]
+                                },
+                                set: { updated in
+                                    ensureStatePopulatedFromCacheIfNeeded()
+                                    if index < ancestors.count {
+                                        ancestors[index] = updated
+                                    }
+                                }
+                            )
                             EntryItemView(
-                                entry: $ancestors[index],
+                                entry: ancestorBinding,
                                 isRootOverride: index == 0
                             )
                         }
 
-                        if !ancestors.isEmpty {
+                        if !visibleAncestors.isEmpty {
                             Divider().overlay(SubTheme.whitesmoke)
                         }
 
                         let entryBinding = Binding<SubEntry>(
-                            get: { mainEntry ?? entry },
+                            get: { displayedMainEntry ?? entry },
                             set: { updated in
+                                ensureStatePopulatedFromCacheIfNeeded()
                                 mainEntry = updated
                                 entry = updated
                             }
@@ -80,8 +131,8 @@ public struct ReplyDetailView: View {
 
                         EntryItemView(
                             entry: entryBinding,
-                            isRootOverride: ancestors.isEmpty,
-                            canDeleteAsRecipient: ancestors.last.map {
+                            isRootOverride: visibleAncestors.isEmpty,
+                            canDeleteAsRecipient: visibleAncestors.last.map {
                                 $0.createdBy.username.lowercased() == appState.currentUser?.username.lowercased()
                             } ?? false
                         )
@@ -89,17 +140,29 @@ public struct ReplyDetailView: View {
                     .padding(.vertical, 6)
 
                     // Reply Input (`templates/input/reply.html`)
-                    replyComposerSection(for: entry)
+                    replyComposerSection(for: entry, visibleKids: visibleKids)
 
                     // Descendant Threads (`templates/common/threads.html`)
-                    if !kids.isEmpty {
+                    if !visibleKids.isEmpty {
                         VStack(alignment: .leading, spacing: 0) {
-                            ForEach(kids.indices, id: \.self) { index in
+                            ForEach(visibleKids.indices, id: \.self) { index in
                                 if index > 0 {
                                     Divider().overlay(SubTheme.whitesmoke)
                                 }
+                                let kidBinding = Binding<SubEntry>(
+                                    get: {
+                                        let currentKids = displayedKids
+                                        return index < currentKids.count ? currentKids[index] : visibleKids[index]
+                                    },
+                                    set: { updated in
+                                        ensureStatePopulatedFromCacheIfNeeded()
+                                        if index < kids.count {
+                                            kids[index] = updated
+                                        }
+                                    }
+                                )
                                 ThreadNodeView(
-                                    entry: $kids[index],
+                                    entry: kidBinding,
                                     parentAuthorUsername: entry.createdBy.username
                                 )
                             }
@@ -112,12 +175,13 @@ public struct ReplyDetailView: View {
         }
         .background(SubTheme.background)
         .task(id: "\(replyID)-\(appState.feedRefreshTrigger.uuidString)") {
+            ensureStatePopulatedFromCacheIfNeeded()
             await loadThread()
         }
     }
 
     @ViewBuilder
-    private func replyComposerSection(for entry: SubEntry) -> some View {
+    private func replyComposerSection(for entry: SubEntry, visibleKids: [SubEntry]) -> some View {
         if !appState.isAuthenticated {
             PlaceholderBannerView(
                 text: "your account to reply",
@@ -129,7 +193,7 @@ public struct ReplyDetailView: View {
             )
         } else if isOwnEntry {
             PlaceholderBannerView(
-                text: entry.replyCount == 0 && kids.isEmpty ? "No reply yet" : "Reply back to them",
+                text: entry.replyCount == 0 && visibleKids.isEmpty ? "No reply yet" : "Reply back to them",
                 showsReplyIcon: true
             )
         } else if hasDuplicateReply {
@@ -146,6 +210,7 @@ public struct ReplyDetailView: View {
                     parentID: entry.id,
                     content: content
                 )
+                ensureStatePopulatedFromCacheIfNeeded()
                 kids.insert(created, at: 0)
                 duplicateFromServer = true
                 if var currentMain = mainEntry {
@@ -159,11 +224,34 @@ public struct ReplyDetailView: View {
         }
     }
 
+    private func ensureStatePopulatedFromCacheIfNeeded() {
+        if loadedReplyID != replyID {
+            loadedReplyID = replyID
+            if let cached = cachedResponse {
+                ancestors = cached.ancestors
+                duplicateFromServer = cached.duplicate
+                var hydratedEntry = cached.entry
+                if hydratedEntry.kids == nil {
+                    hydratedEntry.kids = cached.kids
+                }
+                mainEntry = hydratedEntry
+                kids = cached.kids
+            } else {
+                ancestors = []
+                duplicateFromServer = nil
+                mainEntry = nil
+                kids = []
+            }
+        }
+    }
+
     private func loadThread() async {
+        ensureStatePopulatedFromCacheIfNeeded()
         isLoading = true
         errorMessage = nil
         do {
             let response = try await appState.apiClient.fetchReplyDetail(id: replyID)
+            loadedReplyID = replyID
             ancestors = response.ancestors
             duplicateFromServer = response.duplicate
             var hydratedEntry = response.entry

@@ -177,6 +177,8 @@ public struct MemberView: View {
 
     @State private var member: SubUser?
     @State private var entries: [SubEntry] = []
+    @State private var loadedUsername: String?
+    @State private var hasLoadedPostsOnce: Bool = false
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
     @State private var isLoadingDetails: Bool = true
@@ -191,13 +193,46 @@ public struct MemberView: View {
         self.username = username
     }
 
+    private var cleanUsername: String {
+        username.lowercased()
+    }
+
+    private var displayedMember: SubUser? {
+        if loadedUsername == cleanUsername, let member {
+            return member
+        }
+        return appState.apiClient.cachedMemberDetail(username: cleanUsername)
+    }
+
+    private var cachedPostsResponse: PaginatedEntriesResponse? {
+        appState.apiClient.cachedMemberPosts(username: cleanUsername, page: 1)
+    }
+
+    private var displayedEntries: [SubEntry] {
+        if loadedUsername == cleanUsername && hasLoadedPostsOnce {
+            return entries
+        }
+        return cachedPostsResponse?.entries ?? []
+    }
+
+    private var displayedCanLoadMore: Bool {
+        if loadedUsername == cleanUsername && hasLoadedPostsOnce {
+            return canLoadMore
+        }
+        return (cachedPostsResponse?.entries.count ?? 0) == pageSize
+    }
+
     public var body: some View {
         RefreshableScrollView {
             await loadMember(reset: true)
             await appState.refreshNotifications()
         } content: {
             VStack(alignment: .leading, spacing: 0) {
-                if isLoadingDetails && member == nil {
+                let activeMember = displayedMember
+                let visibleEntries = displayedEntries
+                let hasCachedPosts = cachedPostsResponse != nil || (loadedUsername == cleanUsername && hasLoadedPostsOnce)
+
+                if isLoadingDetails && activeMember == nil && errorMessage == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -207,35 +242,35 @@ public struct MemberView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
-                } else if let errorMessage, member == nil {
+                } else if let errorMessage, activeMember == nil {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
                         .padding(.vertical, 12)
-                } else if let member {
+                } else if let activeMember {
+                    let memberBinding = Binding<SubUser>(
+                        get: { self.displayedMember ?? activeMember },
+                        set: { updated in
+                            self.loadedUsername = cleanUsername
+                            self.member = updated
+                        }
+                    )
+
                     UserRowView(
-                        member: Binding(
-                            get: { self.member ?? member },
-                            set: { self.member = $0 }
-                        ),
+                        member: memberBinding,
                         isMemberHeader: true
                     )
 
-                    let links = member.allLinks
-                    if !links.isEmpty || member.donated > 0 {
+                    let links = activeMember.allLinks
+                    if !links.isEmpty || activeMember.donated > 0 {
                         Divider().overlay(SubTheme.whitesmoke)
-                        MemberLinksView(links: links, donated: member.donated)
+                        MemberLinksView(links: links, donated: activeMember.donated)
                     }
 
                     Divider().overlay(SubTheme.whitesmoke)
-                    MemberStatusRowView(
-                        member: Binding(
-                            get: { self.member ?? member },
-                            set: { self.member = $0 }
-                        )
-                    )
+                    MemberStatusRowView(member: memberBinding)
 
-                    if isLoadingPosts && entries.isEmpty {
+                    if isLoadingPosts && visibleEntries.isEmpty && !hasCachedPosts && errorMessage == nil {
                         Divider().overlay(SubTheme.whitesmoke)
                         HStack {
                             ProgressView()
@@ -246,29 +281,45 @@ public struct MemberView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 16)
-                    } else if let errorMessage, entries.isEmpty {
+                    } else if let errorMessage, visibleEntries.isEmpty {
                         Divider().overlay(SubTheme.whitesmoke)
                         Text(errorMessage)
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.alert)
                             .padding(.vertical, 12)
-                    } else if entries.isEmpty && !isLoadingPosts {
+                    } else if visibleEntries.isEmpty && (!isLoadingPosts || hasCachedPosts) {
                         Divider().overlay(SubTheme.whitesmoke)
                         Text("Uh, nothing here yet.")
                             .font(.system(size: 14))
                             .foregroundStyle(.primary)
                             .padding(.vertical, 10)
                     } else {
-                        ForEach(entries.indices, id: \.self) { index in
-                            let prevParentID: Int? = index > 0 ? entries[index - 1].parent?.id : nil
+                        ForEach(visibleEntries.indices, id: \.self) { index in
+                            let prevParentID: Int? = index > 0 ? visibleEntries[index - 1].parent?.id : nil
+                            let entryBinding = Binding<SubEntry>(
+                                get: {
+                                    let current = displayedEntries
+                                    return index < current.count ? current[index] : visibleEntries[index]
+                                },
+                                set: { updated in
+                                    if loadedUsername != cleanUsername || !hasLoadedPostsOnce {
+                                        entries = visibleEntries
+                                        loadedUsername = cleanUsername
+                                        hasLoadedPostsOnce = true
+                                    }
+                                    if index < entries.count {
+                                        entries[index] = updated
+                                    }
+                                }
+                            )
                             StreamEntryView(
-                                entry: $entries[index],
+                                entry: entryBinding,
                                 previousParentID: prevParentID,
                                 isFirstInList: false
                             )
                         }
 
-                        if canLoadMore {
+                        if displayedCanLoadMore {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack {
                                 Spacer()
@@ -291,8 +342,28 @@ public struct MemberView: View {
             .subFeedContainer()
         }
         .background(SubTheme.background)
-        .task(id: "\(username.lowercased())-\(appState.feedRefreshTrigger.uuidString)") {
+        .task(id: "\(cleanUsername)-\(appState.feedRefreshTrigger.uuidString)") {
+            applyCachedMemberIfNeeded()
             await loadMember(reset: true)
+        }
+    }
+
+    private func applyCachedMemberIfNeeded() {
+        guard !username.isEmpty else { return }
+        if loadedUsername != cleanUsername {
+            loadedUsername = cleanUsername
+            member = appState.apiClient.cachedMemberDetail(username: cleanUsername)
+            if let cachedPosts = appState.apiClient.cachedMemberPosts(username: cleanUsername, page: 1) {
+                entries = cachedPosts.entries
+                currentPage = cachedPosts.page
+                canLoadMore = cachedPosts.entries.count == pageSize
+                hasLoadedPostsOnce = true
+            } else {
+                entries = []
+                currentPage = 1
+                canLoadMore = false
+                hasLoadedPostsOnce = false
+            }
         }
     }
 
@@ -300,11 +371,31 @@ public struct MemberView: View {
         guard !username.isEmpty else { return }
         let targetPage = reset ? 1 : currentPage + 1
 
-        if reset || member == nil {
-            if member?.username.lowercased() != username.lowercased() {
-                member = nil
-                entries = []
-                canLoadMore = false
+        if reset || member == nil || loadedUsername != cleanUsername {
+            if loadedUsername != cleanUsername {
+                loadedUsername = cleanUsername
+                member = appState.apiClient.cachedMemberDetail(username: cleanUsername)
+                if let cachedPosts = appState.apiClient.cachedMemberPosts(username: cleanUsername, page: 1) {
+                    entries = cachedPosts.entries
+                    currentPage = cachedPosts.page
+                    canLoadMore = cachedPosts.entries.count == pageSize
+                    hasLoadedPostsOnce = true
+                } else {
+                    entries = []
+                    currentPage = 1
+                    canLoadMore = false
+                    hasLoadedPostsOnce = false
+                }
+            } else {
+                if member == nil {
+                    member = appState.apiClient.cachedMemberDetail(username: cleanUsername)
+                }
+                if !hasLoadedPostsOnce, let cachedPosts = appState.apiClient.cachedMemberPosts(username: cleanUsername, page: 1) {
+                    entries = cachedPosts.entries
+                    currentPage = cachedPosts.page
+                    canLoadMore = cachedPosts.entries.count == pageSize
+                    hasLoadedPostsOnce = true
+                }
             }
             errorMessage = nil
             loadMoreError = false
@@ -314,6 +405,7 @@ public struct MemberView: View {
             do {
                 let fetchedMember = try await appState.apiClient.fetchMemberDetail(username: username)
                 member = fetchedMember
+                loadedUsername = cleanUsername
                 isLoadingDetails = false
 
                 if let current = appState.currentUser?.username.lowercased(),
@@ -329,6 +421,7 @@ public struct MemberView: View {
                 entries = postsResponse.entries
                 currentPage = postsResponse.page
                 canLoadMore = postsResponse.entries.count == pageSize
+                hasLoadedPostsOnce = true
             } catch {
                 errorMessage = error.localizedDescription
             }

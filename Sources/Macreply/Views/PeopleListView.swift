@@ -6,6 +6,8 @@ public struct PeopleListView: View {
     public let section: SidebarSection
 
     @State private var users: [SubUser] = []
+    @State private var loadedKey: String?
+    @State private var hasLoadedOnce: Bool = false
     @State private var currentPage: Int = 1
     @State private var canLoadMore: Bool = false
     @State private var isLoading: Bool = false
@@ -18,6 +20,30 @@ public struct PeopleListView: View {
 
     public init(section: SidebarSection) {
         self.section = section
+    }
+
+    private var activeQuery: String? {
+        guard section == .people else { return nil }
+        return loadedKey == section.rawValue ? searchQuery : appState.peopleSearchQuery
+    }
+
+    private var cachedResponse: PaginatedUsersResponse? {
+        guard let apiPath = section.apiPath else { return nil }
+        return appState.apiClient.cachedUsers(path: apiPath, page: 1, query: activeQuery)
+    }
+
+    private var displayedUsers: [SubUser] {
+        if loadedKey == section.rawValue {
+            return users
+        }
+        return cachedResponse?.entries ?? []
+    }
+
+    private var displayedCanLoadMore: Bool {
+        if loadedKey == section.rawValue {
+            return canLoadMore
+        }
+        return (cachedResponse?.entries.count ?? 0) == pageSize
     }
 
     public var body: some View {
@@ -37,7 +63,10 @@ public struct PeopleListView: View {
                     }
                 }
 
-                if isLoading && users.isEmpty {
+                let visibleUsers = displayedUsers
+                let isWaitingForFirstLoad = (isLoading || loadedKey != section.rawValue || !hasLoadedOnce)
+
+                if visibleUsers.isEmpty && isWaitingForFirstLoad && errorMessage == nil {
                     HStack {
                         ProgressView()
                             .controlSize(.small)
@@ -47,7 +76,7 @@ public struct PeopleListView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 16)
-                } else if let errorMessage, users.isEmpty {
+                } else if let errorMessage, visibleUsers.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(errorMessage)
                             .font(.system(size: 13))
@@ -60,21 +89,36 @@ public struct PeopleListView: View {
                         .foregroundStyle(SubTheme.accent)
                     }
                     .padding(.vertical, 12)
-                } else if users.isEmpty {
+                } else if visibleUsers.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
                         .padding(.vertical, 12)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(users.indices, id: \.self) { index in
+                        ForEach(visibleUsers.indices, id: \.self) { index in
                             if index > 0 {
                                 Divider().overlay(SubTheme.whitesmoke)
                             }
-                            UserRowView(member: $users[index])
+                            let userBinding = Binding<SubUser>(
+                                get: {
+                                    let current = displayedUsers
+                                    return index < current.count ? current[index] : visibleUsers[index]
+                                },
+                                set: { updated in
+                                    if loadedKey != section.rawValue {
+                                        users = visibleUsers
+                                        loadedKey = section.rawValue
+                                    }
+                                    if index < users.count {
+                                        users[index] = updated
+                                    }
+                                }
+                            )
+                            UserRowView(member: userBinding)
                         }
 
-                        if canLoadMore && searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+                        if displayedCanLoadMore && (activeQuery?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack {
                                 Spacer()
@@ -101,14 +145,51 @@ public struct PeopleListView: View {
         .task(id: "\(section.rawValue)-\(appState.feedRefreshTrigger.uuidString)") {
             if section == .people {
                 searchQuery = appState.peopleSearchQuery
+            } else {
+                searchQuery = ""
             }
+            applyCachedUsersIfNeeded()
             await loadUsers(reset: true)
+        }
+    }
+
+    private func applyCachedUsersIfNeeded() {
+        guard let apiPath = section.apiPath else { return }
+        let query = section == .people ? searchQuery : nil
+        if let cached = appState.apiClient.cachedUsers(path: apiPath, page: 1, query: query) {
+            users = cached.entries
+            currentPage = cached.page
+            canLoadMore = cached.entries.count == pageSize
+            loadedKey = section.rawValue
+            hasLoadedOnce = true
+        } else if loadedKey != section.rawValue {
+            users = []
+            currentPage = 1
+            canLoadMore = false
+            loadedKey = section.rawValue
+            hasLoadedOnce = false
         }
     }
 
     private func loadUsers(reset: Bool) async {
         guard let apiPath = section.apiPath else { return }
+        let query = section == .people ? searchQuery : nil
         if reset {
+            if let cached = appState.apiClient.cachedUsers(path: apiPath, page: 1, query: query) {
+                if loadedKey != section.rawValue || users.isEmpty {
+                    users = cached.entries
+                    currentPage = cached.page
+                    canLoadMore = cached.entries.count == pageSize
+                    loadedKey = section.rawValue
+                    hasLoadedOnce = true
+                }
+            } else {
+                users = []
+                currentPage = 1
+                canLoadMore = false
+                loadedKey = section.rawValue
+                hasLoadedOnce = false
+            }
             isLoading = true
             errorMessage = nil
             loadMoreError = false
@@ -117,19 +198,20 @@ public struct PeopleListView: View {
         }
 
         let targetPage = reset ? 1 : currentPage + 1
-        let activeQuery = section == .people ? searchQuery : nil
 
         do {
             let response = try await appState.apiClient.fetchUsers(
                 path: apiPath,
                 page: targetPage,
-                query: activeQuery
+                query: query
             )
             if reset {
                 users = response.entries
             } else {
                 users.append(contentsOf: response.entries)
             }
+            loadedKey = section.rawValue
+            hasLoadedOnce = true
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
             loadMoreError = false
@@ -140,6 +222,7 @@ public struct PeopleListView: View {
             }
         } catch {
             if reset {
+                hasLoadedOnce = true
                 errorMessage = error.localizedDescription
             } else {
                 loadMoreError = true
