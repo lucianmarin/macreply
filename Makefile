@@ -14,6 +14,8 @@ app: build
 	mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)"
 	cp ".build/release/$(EXECUTABLE_NAME)" "$(MACOS_DIR)/$(APP_NAME)"
 	cp "AppIcon.icns" "$(RESOURCES_DIR)/AppIcon.icns"
+	@if [ -f "AppIcon-dark.icns" ]; then cp "AppIcon-dark.icns" "$(RESOURCES_DIR)/AppIcon-dark.icns"; fi
+	@if [ -f "Assets.car" ]; then cp "Assets.car" "$(RESOURCES_DIR)/Assets.car"; fi
 	cp -R ".build/release/$(EXECUTABLE_NAME)_$(EXECUTABLE_NAME).bundle" "$(RESOURCES_DIR)/"
 	@printf '%s\n' \
 		'<?xml version="1.0" encoding="UTF-8"?>' \
@@ -25,6 +27,8 @@ app: build
 		'    <key>CFBundleExecutable</key>' \
 		'    <string>Subreply</string>' \
 		'    <key>CFBundleIconFile</key>' \
+		'    <string>AppIcon</string>' \
+		'    <key>CFBundleIconName</key>' \
 		'    <string>AppIcon</string>' \
 		'    <key>CFBundleIdentifier</key>' \
 		'    <string>com.subreply.macreply</string>' \

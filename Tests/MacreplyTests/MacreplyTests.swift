@@ -401,10 +401,47 @@ struct MacreplyTests {
         #expect(narrowHeight < 65)
     }
 
-    @Test("AppIcon renders macOS squircle icon from icon.svg specifications")
+    @Test("AppIcon renders macOS squircle icon from light.svg and dark.svg specifications")
     func testAppIconGeneration() throws {
-        let pngData = try #require(AppIcon.renderPNGData(pixelSize: 256))
-        #expect(!pngData.isEmpty)
+        let lightPNG = try #require(AppIcon.renderPNGData(pixelSize: 256, mode: .light))
+        let darkPNG = try #require(AppIcon.renderPNGData(pixelSize: 256, mode: .dark))
+        #expect(!lightPNG.isEmpty)
+        #expect(!darkPNG.isEmpty)
+        #expect(lightPNG != darkPNG)
+
+        let lightRep = try #require(NSBitmapImageRep(data: lightPNG))
+        let darkRep = try #require(NSBitmapImageRep(data: darkPNG))
+
+        func pixelRGB(_ rep: NSBitmapImageRep, x: Int, y: Int) -> (Int, Int, Int) {
+            var px = [0, 0, 0, 0]
+            rep.getPixel(&px, atX: x, y: y)
+            return (px[0], px[1], px[2])
+        }
+
+        // Background inside squircle at (50, 50): light is teal (#2EB8B8), dark is navy (#1F4D7A)
+        #expect(pixelRGB(lightRep, x: 50, y: 50) == (0x2E, 0xB8, 0xB8))
+        #expect(pixelRGB(darkRep, x: 50, y: 50) == (0x1F, 0x4D, 0x7A))
+
+        // Upper tile at (148, 107): light is navy (#1F4D7A), dark is white (#FFFFFF)
+        #expect(pixelRGB(lightRep, x: 148, y: 107) == (0x1F, 0x4D, 0x7A))
+        #expect(pixelRGB(darkRep, x: 148, y: 107) == (0xFF, 0xFF, 0xFF))
+
+        // Lower tile at (107, 148): light is white (#FFFFFF), dark is teal (#2EB8B8)
+        #expect(pixelRGB(lightRep, x: 107, y: 148) == (0xFF, 0xFF, 0xFF))
+        #expect(pixelRGB(darkRep, x: 107, y: 148) == (0x2E, 0xB8, 0xB8))
+
+        #expect(AppIcon.mode(for: NSAppearance(named: .aqua)) == .light)
+        #expect(AppIcon.mode(for: NSAppearance(named: .darkAqua)) == .dark)
+
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("macreply-xcassets-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        try AppIcon.writeAssetCatalog(to: tmpDir)
+        let contentsURL = tmpDir.appendingPathComponent("AppIcon.appiconset/Contents.json")
+        let contentsText = try String(contentsOf: contentsURL, encoding: .utf8)
+        #expect(contentsText.contains("\"dark\""))
+        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("AppIcon.appiconset/icon_512x512@2x_light.png").path))
+        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("AppIcon.appiconset/icon_512x512@2x_dark.png").path))
+
         let image = AppIcon.loadOrRenderImage()
         #expect(image.size.width > 0)
         #expect(image.size.height > 0)

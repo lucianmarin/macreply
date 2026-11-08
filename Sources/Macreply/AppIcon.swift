@@ -3,6 +3,59 @@ import AppKit
 import CoreGraphics
 
 public enum AppIcon {
+    public enum AppearanceMode: String, CaseIterable, Sendable {
+        case light
+        case dark
+    }
+
+    @MainActor
+    private static var appearanceObservation: NSKeyValueObservation?
+    @MainActor
+    private static var themeNotificationObserver: NSObjectProtocol?
+
+    public static func mode(for appearance: NSAppearance?) -> AppearanceMode {
+        guard let appearance else { return .light }
+        let match = appearance.bestMatch(from: [.darkAqua, .aqua])
+        return match == .darkAqua ? .dark : .light
+    }
+
+    @MainActor
+    public static func currentMode() -> AppearanceMode {
+        mode(for: NSApp?.effectiveAppearance)
+    }
+
+    @MainActor
+    public static func updateApplicationIcon(for appearance: NSAppearance? = nil) {
+        let resolvedAppearance = appearance ?? NSApp?.effectiveAppearance
+        NSApplication.shared.applicationIconImage = loadOrRenderImage(for: resolvedAppearance)
+    }
+
+    @MainActor
+    public static func installAppearanceObserver() {
+        updateApplicationIcon()
+        if appearanceObservation == nil {
+            appearanceObservation = NSApplication.shared.observe(
+                \.effectiveAppearance,
+                options: [.new]
+            ) { _, _ in
+                Task { @MainActor in
+                    updateApplicationIcon()
+                }
+            }
+        }
+        if themeNotificationObserver == nil {
+            themeNotificationObserver = DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    updateApplicationIcon()
+                }
+            }
+        }
+    }
+
     public static func upperTileCGPath() -> CGPath {
         let path = CGMutablePath()
         path.move(to: CGPoint(x: 240, y: 249.271))
@@ -65,7 +118,7 @@ public enum AppIcon {
         return path
     }
 
-    public static func renderPNGData(pixelSize: Int) -> Data? {
+    public static func renderPNGData(pixelSize: Int, mode: AppearanceMode = .light) -> Data? {
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let ctx = CGContext(
                   data: nil,
@@ -79,18 +132,18 @@ public enum AppIcon {
             return nil
         }
 
-        draw(in: ctx, pixelSize: pixelSize)
+        draw(in: ctx, pixelSize: pixelSize, mode: mode)
 
         guard let cgImage = ctx.makeImage() else { return nil }
         let rep = NSBitmapImageRep(cgImage: cgImage)
         return rep.representation(using: .png, properties: [:])
     }
 
-    public static func renderNSImage(pointSize: CGFloat = 512) -> NSImage {
+    public static func renderNSImage(pointSize: CGFloat = 512, mode: AppearanceMode = .light) -> NSImage {
         let image = NSImage(size: NSSize(width: pointSize, height: pointSize))
         for scale in [1, 2] {
             let pixelSize = Int(pointSize) * scale
-            if let data = renderPNGData(pixelSize: pixelSize),
+            if let data = renderPNGData(pixelSize: pixelSize, mode: mode),
                let rep = NSBitmapImageRep(data: data) {
                 rep.size = NSSize(width: pointSize, height: pointSize)
                 image.addRepresentation(rep)
@@ -99,19 +152,21 @@ public enum AppIcon {
         return image
     }
 
-    public static func loadOrRenderImage() -> NSImage {
-        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+    public static func loadOrRenderImage(for appearance: NSAppearance? = nil) -> NSImage {
+        let targetMode = mode(for: appearance)
+        let resourceName = targetMode == .dark ? "AppIcon-dark" : "AppIcon"
+        if let url = Bundle.main.url(forResource: resourceName, withExtension: "icns"),
            let image = NSImage(contentsOf: url) {
             return image
         }
-        if let url = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+        if let url = Bundle.module.url(forResource: resourceName, withExtension: "icns"),
            let image = NSImage(contentsOf: url) {
             return image
         }
-        return renderNSImage()
+        return renderNSImage(mode: targetMode)
     }
 
-    public static func writeIconset(to directoryURL: URL) throws {
+    public static func writeIconset(to directoryURL: URL, mode: AppearanceMode = .light) throws {
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         let specs: [(name: String, pixels: Int)] = [
             ("icon_16x16.png", 16),
@@ -126,14 +181,72 @@ public enum AppIcon {
             ("icon_512x512@2x.png", 1024)
         ]
         for spec in specs {
-            guard let pngData = renderPNGData(pixelSize: spec.pixels) else {
+            guard let pngData = renderPNGData(pixelSize: spec.pixels, mode: mode) else {
                 throw CocoaError(.fileWriteUnknown)
             }
             try pngData.write(to: directoryURL.appendingPathComponent(spec.name))
         }
     }
 
-    private static func draw(in ctx: CGContext, pixelSize: Int) {
+    public static func writeAssetCatalog(to xcassetsURL: URL) throws {
+        let appiconsetURL = xcassetsURL.appendingPathComponent("AppIcon.appiconset", isDirectory: true)
+        try FileManager.default.createDirectory(at: appiconsetURL, withIntermediateDirectories: true)
+
+        let rootContents = """
+        {
+          "info" : {
+            "author" : "xcode",
+            "version" : 1
+          }
+        }
+        """
+        try rootContents.data(using: .utf8)?.write(to: xcassetsURL.appendingPathComponent("Contents.json"))
+
+        let pointSizes = [16, 32, 128, 256, 512]
+        var imagesJSON: [[String: Any]] = []
+
+        for pointSize in pointSizes {
+            for scale in [1, 2] {
+                let pixels = pointSize * scale
+                let scaleSuffix = scale == 2 ? "@2x" : ""
+                for mode in AppearanceMode.allCases {
+                    let filename = "icon_\(pointSize)x\(pointSize)\(scaleSuffix)_\(mode.rawValue).png"
+                    guard let pngData = renderPNGData(pixelSize: pixels, mode: mode) else {
+                        throw CocoaError(.fileWriteUnknown)
+                    }
+                    try pngData.write(to: appiconsetURL.appendingPathComponent(filename))
+
+                    var entry: [String: Any] = [
+                        "filename": filename,
+                        "idiom": "mac",
+                        "scale": "\(scale)x",
+                        "size": "\(pointSize)x\(pointSize)"
+                    ]
+                    if mode == .dark {
+                        entry["appearances"] = [
+                            [
+                                "appearance": "luminosity",
+                                "value": "dark"
+                            ]
+                        ]
+                    }
+                    imagesJSON.append(entry)
+                }
+            }
+        }
+
+        let catalogDict: [String: Any] = [
+            "images": imagesJSON,
+            "info": [
+                "author": "xcode",
+                "version": 1
+            ]
+        ]
+        let jsonData = try JSONSerialization.data(withJSONObject: catalogDict, options: [.prettyPrinted, .sortedKeys])
+        try jsonData.write(to: appiconsetURL.appendingPathComponent("Contents.json"))
+    }
+
+    private static func draw(in ctx: CGContext, pixelSize: Int, mode: AppearanceMode = .light) {
         let size = CGFloat(pixelSize)
         let scale = size / 1024.0
 
@@ -158,6 +271,23 @@ public enum AppIcon {
         let navy = CGColor(srgbRed: 0x1F / 255.0, green: 0x4D / 255.0, blue: 0x7A / 255.0, alpha: 1.0)
         let white = CGColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
 
+        let backgroundColor: CGColor
+        let upperTileColor: CGColor
+        let lowerTileColor: CGColor
+
+        switch mode {
+        case .light:
+            // Matches light.svg: rect=#2EB8B8, upper=#1F4D7A, lower=white
+            backgroundColor = teal
+            upperTileColor = navy
+            lowerTileColor = white
+        case .dark:
+            // Matches dark.svg: rect=#1F4D7A, upper=white, lower=#2EB8B8
+            backgroundColor = navy
+            upperTileColor = white
+            lowerTileColor = teal
+        }
+
         // Outer macOS icon drop shadow
         ctx.saveGState()
         ctx.setShadow(
@@ -166,7 +296,7 @@ public enum AppIcon {
             color: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.28)
         )
         ctx.addPath(squirclePath)
-        ctx.setFillColor(teal)
+        ctx.setFillColor(backgroundColor)
         ctx.fillPath()
         ctx.restoreGState()
 
@@ -175,7 +305,7 @@ public enum AppIcon {
         ctx.addPath(squirclePath)
         ctx.clip()
 
-        ctx.setFillColor(teal)
+        ctx.setFillColor(backgroundColor)
         ctx.fill(iconRect)
 
         // Map 600x600 SVG viewBox into 824x824 squircle
@@ -183,14 +313,14 @@ public enum AppIcon {
         let svgScale: CGFloat = 824.0 / 600.0
         ctx.scaleBy(x: svgScale, y: svgScale)
 
-        // Upper tile (fill="#1F4D7A")
+        // Upper tile
         ctx.addPath(upperTileCGPath())
-        ctx.setFillColor(navy)
+        ctx.setFillColor(upperTileColor)
         ctx.fillPath()
 
-        // Lower tile (fill="white")
+        // Lower tile
         ctx.addPath(lowerTileCGPath())
-        ctx.setFillColor(white)
+        ctx.setFillColor(lowerTileColor)
         ctx.fillPath()
 
         ctx.restoreGState()
