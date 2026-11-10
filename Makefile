@@ -18,7 +18,7 @@ app: build
 	@rm -rf /tmp/SubreplyAppIcon.iconset /tmp/AppIcon.icon
 	@if xcrun -f actool >/dev/null 2>&1; then \
 		.build/release/$(EXECUTABLE_NAME) --export-icon-bundle /tmp/AppIcon.icon && \
-		xcrun actool /tmp/AppIcon.icon --compile "$(RESOURCES_DIR)" --platform macosx --minimum-deployment-target 14.0 --app-icon AppIcon --output-partial-info-plist /tmp/SubreplyIconPartial.plist >/dev/null && \
+		xcrun actool /tmp/AppIcon.icon --compile "$(CURDIR)/$(RESOURCES_DIR)" --platform macosx --minimum-deployment-target 14.0 --app-icon AppIcon --output-partial-info-plist /tmp/SubreplyIconPartial.plist >/dev/null && \
 		rm -rf /tmp/AppIcon.icon /tmp/SubreplyIconPartial.plist; \
 	fi
 	@.build/release/$(EXECUTABLE_NAME) --export-iconset /tmp/SubreplyAppIcon.iconset && iconutil -c icns /tmp/SubreplyAppIcon.iconset -o "$(RESOURCES_DIR)/AppIcon.icns" && rm -rf /tmp/SubreplyAppIcon.iconset
