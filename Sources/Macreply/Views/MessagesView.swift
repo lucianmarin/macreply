@@ -53,9 +53,9 @@ public struct MessagesInboxView: View {
                             .foregroundStyle(SubTheme.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 15)
                 } else if let errorMessage, visibleChats.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 7) {
                         Text(errorMessage)
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.alert)
@@ -66,12 +66,12 @@ public struct MessagesInboxView: View {
                         .buttonStyle(.subLink)
                         .foregroundStyle(SubTheme.accent)
                     }
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                 } else if visibleChats.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(visibleChats.indices, id: \.self) { index in
@@ -96,10 +96,10 @@ public struct MessagesInboxView: View {
                                 .disabled(isLoadingMore)
                                 Spacer()
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 7)
                         }
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
                 }
             }
             .subFeedContainer()
@@ -160,7 +160,7 @@ private struct MessageInboxRow: View {
     let chat: SubChat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             RichContentView(author: chat.createdBy, content: chat.content)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -188,7 +188,7 @@ private struct MessageInboxRow: View {
                 .buttonStyle(.subLink)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
     }
 }
 
@@ -312,17 +312,17 @@ public struct ConversationView: View {
                             .foregroundStyle(SubTheme.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 15)
                 } else if let errorMessage, visibleMessages.isEmpty {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else if visibleMessages.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(visibleMessages.indices, id: \.self) { index in
@@ -347,7 +347,7 @@ public struct ConversationView: View {
                                 .disabled(isLoadingMore)
                                 Spacer()
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 7)
                         } else if !isBlockedWaitingForResponse {
                             Divider().overlay(SubTheme.whitesmoke)
                             HStack(spacing: 0) {
@@ -387,10 +387,10 @@ public struct ConversationView: View {
                                 }
                                 Spacer()
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 7)
                         }
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
                 }
             }
             .subFeedContainer()
@@ -509,7 +509,7 @@ private struct ConversationMessageRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             RichContentView(author: chat.createdBy, content: chat.content)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -557,7 +557,7 @@ private struct ConversationMessageRow: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
         .padding(.leading, isIncomingFromPartner ? SubTheme.indent : 0)
     }
 

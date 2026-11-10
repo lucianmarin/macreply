@@ -50,7 +50,7 @@ public struct OptionsView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 15) {
                 menuHeader
 
                 switch selectedTab {
@@ -75,7 +75,7 @@ public struct OptionsView: View {
     }
 
     private var menuHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             ForEach(Tab.allCases, id: \.self) { tab in
                 Button {
                     selectedTab = tab
@@ -85,7 +85,7 @@ public struct OptionsView: View {
                     pollingSavedNotice = false
                     appState.refreshNotificationsOnViewChange()
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(tab.rawValue)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(selectedTab == tab ? Color.primary : SubTheme.silver)
@@ -98,24 +98,24 @@ public struct OptionsView: View {
             }
             Spacer()
         }
-        .padding(.top, 4)
+        .padding(.vertical, 6.5)
     }
 
     private var profileForm: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 8) {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "Username", required: true, text: $username)
                 SubFormField(label: "Email address", required: true, text: $email)
             }
             errorRows(for: ["username", "email"], in: profileErrors)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "First name", required: true, text: $firstName)
                 SubFormField(label: "Last name", required: false, text: $lastName)
             }
             errorRows(for: ["first_name", "last_name", "full_name"], in: profileErrors)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "Emoji", required: false, placeholder: ":)", text: $emoji)
                     .frame(width: 64)
                 SubFormField(label: "Birthday", required: false, placeholder: "Y-M-D", text: $birthday)
@@ -127,7 +127,7 @@ public struct OptionsView: View {
             SubFormField(label: "Link", required: false, placeholder: "https://", text: $link)
             errorRows(for: ["link"], in: profileErrors)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text("Description")
                     .font(.system(size: 13))
                     .foregroundStyle(.primary)
@@ -136,7 +136,7 @@ public struct OptionsView: View {
                     .font(.system(size: 14))
                     .lineLimit(2...5)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 6.5)
                     .background(
                         RoundedRectangle(cornerRadius: SubTheme.radius)
                             .fill(descriptionText.count > 640 ? SubTheme.redsmoke : SubTheme.whitesmoke)
@@ -160,20 +160,20 @@ public struct OptionsView: View {
     }
 
     private var detailsForm: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 8) {
+        VStack(alignment: .leading, spacing: 15) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "GitHub", required: false, text: $github)
                 SubFormField(label: "Instagram", required: false, text: $instagram)
             }
             errorRows(for: ["github", "instagram"], in: detailsErrors)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "LinkedIn", required: false, text: $linkedin)
                 SubFormField(label: "Reddit", required: false, text: $reddit)
             }
             errorRows(for: ["linkedin", "reddit"], in: detailsErrors)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "Code", required: false, placeholder: "+1", text: $phoneCode)
                     .frame(width: 64)
                 SubFormField(label: "Phone number", required: false, text: $phoneNumber)
@@ -181,7 +181,7 @@ public struct OptionsView: View {
             }
             errorRows(for: ["phone", "paypal"], in: detailsErrors)
 
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 SubFormField(label: "Spotify", required: false, text: $spotify)
                 SubFormField(label: "X", required: false, text: $xHandle)
             }
@@ -203,7 +203,7 @@ public struct OptionsView: View {
     }
 
     private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 15) {
             SubFormField(
                 label: "API Base URL",
                 required: false,
@@ -224,8 +224,6 @@ public struct OptionsView: View {
                     serverSavedNotice = true
                 }
             }
-
-            Divider().overlay(SubTheme.whitesmoke)
 
             SubFormField(
                 label: "Notifications polling (minutes)",
@@ -248,11 +246,9 @@ public struct OptionsView: View {
                 }
             }
 
-            Divider().overlay(SubTheme.whitesmoke)
-
             if appState.isAuthenticated {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text("Signed in as @\(appState.currentUser?.username ?? "")")
                             .font(.system(size: 14, weight: .medium))
                         Text("Sign out from this Mac and clear stored Bearer token.")
@@ -404,7 +400,7 @@ public struct SubFormField: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 1) {
                 Text(label)
                     .font(.system(size: 13))
@@ -428,7 +424,7 @@ public struct SubFormField: View {
             .textFieldStyle(.plain)
             .font(.system(size: 14))
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.vertical, 6.5)
             .background(
                 RoundedRectangle(cornerRadius: SubTheme.radius)
                     .fill(SubTheme.whitesmoke)
@@ -453,7 +449,7 @@ public struct SubSubmitButton: View {
                 .font(.system(size: 14))
                 .foregroundStyle(SubTheme.background)
                 .padding(.horizontal, 15)
-                .padding(.vertical, 6)
+                .padding(.vertical, 6.5)
                 .background(
                     RoundedRectangle(cornerRadius: SubTheme.radius)
                         .fill(SubTheme.accent)

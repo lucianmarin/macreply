@@ -75,9 +75,9 @@ public struct PeopleListView: View {
                             .foregroundStyle(SubTheme.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 15)
                 } else if let errorMessage, visibleUsers.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 7) {
                         Text(errorMessage)
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.alert)
@@ -88,12 +88,12 @@ public struct PeopleListView: View {
                         .buttonStyle(.subLink)
                         .foregroundStyle(SubTheme.accent)
                     }
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                 } else if visibleUsers.isEmpty {
                     Text("Uh, nothing here yet.")
                         .font(.system(size: 14))
                         .foregroundStyle(.primary)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(visibleUsers.indices, id: \.self) { index in
@@ -133,10 +133,10 @@ public struct PeopleListView: View {
                                 .disabled(isLoadingMore)
                                 Spacer()
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 7)
                         }
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
                 }
             }
             .subFeedContainer()

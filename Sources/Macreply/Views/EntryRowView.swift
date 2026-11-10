@@ -253,7 +253,7 @@ public struct InlineParentRowView: View {
         )
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(0.5)
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
     }
 }
 
@@ -314,10 +314,10 @@ public struct EntryItemView: View {
                 Button {
                     appState.openReply(entry.id)
                 } label: {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 0) {
                         Text(entry.replyLabel)
                         if isRootThread {
-                            Text("¬")
+                            Text(" ¬")
                         }
                     }
                     .font(.system(size: 13))
@@ -390,7 +390,7 @@ public struct EntryItemView: View {
                 .buttonStyle(.subLink)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
     }
 
     private func toggleSave() {

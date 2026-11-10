@@ -43,7 +43,7 @@ public struct UserRowView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 0) {
                 Button {
                     appState.openMember(member.username)
@@ -128,8 +128,8 @@ public struct UserRowView: View {
                     }
 
                     if !member.cityLabel.isEmpty {
-                        HStack(spacing: 3) {
-                            Text("from")
+                        HStack(spacing: 0) {
+                            Text("from ")
                                 .font(.system(size: 13, weight: .regular))
                                 .foregroundStyle(SubTheme.gray)
                             Button {
@@ -145,7 +145,7 @@ public struct UserRowView: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
     }
 
     private func toggleFollow() {
@@ -241,12 +241,12 @@ public struct MemberView: View {
                             .foregroundStyle(SubTheme.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 15)
                 } else if let errorMessage, activeMember == nil {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else if let activeMember {
                     let memberBinding = Binding<SubUser>(
                         get: { self.displayedMember ?? activeMember },
@@ -280,13 +280,13 @@ public struct MemberView: View {
                                 .foregroundStyle(SubTheme.gray)
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 15)
                     } else if let errorMessage, visibleEntries.isEmpty {
                         Divider().overlay(SubTheme.whitesmoke)
                         Text(errorMessage)
                             .font(.system(size: 13))
                             .foregroundStyle(SubTheme.alert)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 10)
                     } else if visibleEntries.isEmpty && (!isLoadingPosts || hasCachedPosts) {
                         Divider().overlay(SubTheme.whitesmoke)
                         Text("Uh, nothing here yet.")
@@ -334,7 +334,7 @@ public struct MemberView: View {
                                 .disabled(isLoadingMore)
                                 Spacer()
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 7)
                         }
                     }
                 }
@@ -527,7 +527,7 @@ public struct MemberStatusRowView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
     }
 
     private func toggleFollow() {
@@ -605,7 +605,7 @@ public struct MemberLinksView: View {
                 }
             }
             .modifier(MemberLinkPointerModifier(isLink: isHoveringLink))
-            .padding(.vertical, 6)
+            .padding(.vertical, 7)
     }
 
     public func buildAttributedString() -> AttributedString {

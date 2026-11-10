@@ -46,7 +46,7 @@ public struct ComposerView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             ZStack(alignment: .bottomTrailing) {
                 // Hidden sizing text ensures SwiftUI recalculates multiline height immediately
                 // when the window width changes (macOS TextField(axis: .vertical) caches intrinsic width).
@@ -56,7 +56,7 @@ public struct ComposerView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 6.5)
                     .hidden()
                     .accessibilityHidden(true)
 
@@ -67,7 +67,7 @@ public struct ComposerView: View {
                     .focused($isFocused)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 6.5)
                     .disabled(isSubmitting)
                     .onChange(of: text) { _, newValue in
                         if newValue.contains("\n") {
@@ -93,8 +93,8 @@ public struct ComposerView: View {
                     Text("\(text.count)")
                         .font(.system(size: 11, weight: isOverLimit ? .bold : .regular))
                         .foregroundStyle(isOverLimit ? SubTheme.alert : SubTheme.gray)
-                        .padding(.trailing, 8)
-                        .padding(.bottom, 6)
+                        .padding(.trailing, 7)
+                        .padding(.bottom, 7)
                         .allowsHitTesting(false)
                 }
             }
@@ -109,8 +109,7 @@ public struct ComposerView: View {
                     .foregroundStyle(SubTheme.alert)
             }
         }
-        .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.vertical, 5)
         .onAppear {
             requestFocus()
         }
@@ -290,7 +289,7 @@ public struct PlaceholderBannerView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             if let actionLabel, let onAction {
                 Button(actionLabel, action: onAction)
                     .font(.system(size: 14, weight: .medium))
@@ -319,7 +318,7 @@ public struct PlaceholderBannerView: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 6.5)
         .background(
             LinearGradient(
                 colors: [SubTheme.whitesmoke, SubTheme.background],
@@ -328,8 +327,7 @@ public struct PlaceholderBannerView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: SubTheme.radius))
         )
-        .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.vertical, 7)
     }
 }
 
@@ -361,7 +359,7 @@ public struct SearchQueryBar: View {
                 .font(.system(size: 14))
                 .focused($isFocused)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.vertical, 6.5)
                 .onSubmit {
                     onSearch()
                 }
@@ -377,24 +375,23 @@ public struct SearchQueryBar: View {
                         .foregroundStyle(SubTheme.gray)
                 }
                 .buttonStyle(.subLink)
-                .padding(.trailing, 6)
+                .padding(.trailing, 5)
             }
 
             Button(action: onSearch) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
-                    .frame(width: 30, height: 29)
+                    .frame(width: 30, height: 30)
             }
             .buttonStyle(.subLink)
-            .padding(.trailing, 4)
+            .padding(.trailing, 5)
         }
         .background(
             RoundedRectangle(cornerRadius: SubTheme.radius)
                 .fill(SubTheme.whitesmoke)
         )
-        .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.vertical, 5)
         .onAppear {
             requestFocus()
         }

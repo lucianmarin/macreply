@@ -83,8 +83,8 @@ public extension View {
                 alignment: .leading
             )
             .padding(.horizontal, SubTheme.horizontalPadding)
-            .padding(.top, 14)
-            .padding(.bottom, 14)
+            .padding(.top, 15)
+            .padding(.bottom, 15)
             .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
@@ -604,8 +604,8 @@ public struct RefreshableScrollView<Content: View>: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(SubTheme.gray)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 5)
                 .background(
                     Capsule()
                         .fill(SubTheme.whitesmoke)
@@ -766,7 +766,7 @@ private struct SidebarRowButton: View {
                 }
             }
             .padding(.horizontal, isCompact ? 7 : 10)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
             .frame(maxWidth: .infinity, alignment: isCompact ? .center : .trailing)
             .background(
                 RoundedRectangle(cornerRadius: SubTheme.radius)

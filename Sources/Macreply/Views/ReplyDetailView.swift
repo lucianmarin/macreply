@@ -85,12 +85,12 @@ public struct ReplyDetailView: View {
                             .foregroundStyle(SubTheme.gray)
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 15)
                 } else if let errorMessage, visibleEntry == nil {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(SubTheme.alert)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 } else if var entry = visibleEntry {
                     // Ancestors chain + Focus Entry
                     VStack(alignment: .leading, spacing: 0) {
@@ -137,7 +137,7 @@ public struct ReplyDetailView: View {
                             } ?? false
                         )
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
 
                     // Reply Input (`templates/input/reply.html`)
                     replyComposerSection(for: entry, visibleKids: visibleKids)
@@ -167,7 +167,7 @@ public struct ReplyDetailView: View {
                                 )
                             }
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 5)
                     }
                 }
             }

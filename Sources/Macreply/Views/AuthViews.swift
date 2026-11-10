@@ -13,8 +13,8 @@ public struct LoginView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 15) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Login")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
@@ -22,9 +22,9 @@ public struct LoginView: View {
                         .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
-                .padding(.top, 4)
+                .padding(.top, 5)
 
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 7) {
                     SubFormField(
                         label: "Username or email",
                         required: true,
@@ -110,8 +110,8 @@ public struct RegisterView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 15) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Register")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
@@ -119,27 +119,27 @@ public struct RegisterView: View {
                         .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
-                .padding(.top, 4)
+                .padding(.top, 5)
 
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 7) {
                     SubFormField(label: "Username", required: true, text: $username)
                     SubFormField(label: "Email address", required: true, text: $email)
                 }
                 errorView(keys: ["username", "email"])
 
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 7) {
                     SubFormField(label: "Password", required: true, isSecure: true, text: $password1)
                     SubFormField(label: "Password confirmation", required: true, isSecure: true, text: $password2)
                 }
                 errorView(keys: ["password"])
 
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 7) {
                     SubFormField(label: "First name", required: true, text: $firstName)
                     SubFormField(label: "Last name", required: false, text: $lastName)
                 }
                 errorView(keys: ["first_name", "last_name", "full_name"])
 
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 7) {
                     SubFormField(label: "Emoji", required: false, placeholder: ":)", text: $emoji)
                         .frame(width: 64)
                     SubFormField(label: "Birthday", required: false, placeholder: "Y-M-D", text: $birthday)
@@ -219,8 +219,8 @@ public struct AboutView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 15) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("About")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.primary)
@@ -228,38 +228,49 @@ public struct AboutView: View {
                         .fill(SubTheme.accent)
                         .frame(width: 10, height: 2)
                 }
-                .padding(.top, 4)
+                .padding(.top, 5)
 
                 Text("Welcome to Macreply, the native macOS client for Subreply. It eliminates distractions and clutter, allowing you to focus on meaningful conversations and content sharing directly from a native sidebar and native feeds.")
                     .font(.system(size: 14))
                     .lineSpacing(3)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text("Features and limitations")
                         .font(.system(size: 14, weight: .bold))
                     aboutRule(1, "Reverse-chronological order for all feeds")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(2, "Unique name handles with emoji avatars")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(3, "Unique conversation view similar to a chat interface")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(4, "Light and dark themes based on macOS preference")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(5, "Supports links, @mentions, #id hashrefs and #hashtags")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(6, "Limited to ASCII characters and emojis")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(7, "Limited to 640 characters per reply")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(8, "Limited to one link, mention, hashref or hashtag per reply")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(9, "No support for paragraphs, keeps conversation tidy")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(10, "No popularity counters or instant gratification")
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 7) {
                     Text("Keeping things private")
                         .font(.system(size: 14, weight: .bold))
                     aboutRule(1, "Edit or delete your replies before they are replied to")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(2, "Delete received replies before they are replied to")
+                    Divider().overlay(SubTheme.whitesmoke)
                     aboutRule(3, "No redistribution of any data, private or public based on GDPR")
                 }
 
-                Divider().overlay(SubTheme.whitesmoke)
+                // Divider().overlay(SubTheme.whitesmoke)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 7) {
                     SubFormField(
                         label: "API Server URL",
                         placeholder: "https://subreply.com/api",
@@ -291,7 +302,7 @@ public struct AboutView: View {
 
     private func aboutRule(_ number: Int, _ text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(number).")
                     .font(.system(size: 13))
                     .foregroundStyle(SubTheme.gray)
@@ -299,8 +310,6 @@ public struct AboutView: View {
                 Text(text)
                     .font(.system(size: 14))
             }
-            .padding(.vertical, 4)
-            Divider().overlay(SubTheme.whitesmoke)
         }
     }
 }
