@@ -5,18 +5,24 @@ CONTENTS_DIR = $(BUNDLE_DIR)/Contents
 MACOS_DIR = $(CONTENTS_DIR)/MacOS
 RESOURCES_DIR = $(CONTENTS_DIR)/Resources
 
-.PHONY: build app run test clean
+.PHONY: all build app run test clean
+
+all: app
 
 build:
 	swift build -c release
 
 app: build
-	mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)"
-	cp ".build/release/$(EXECUTABLE_NAME)" "$(MACOS_DIR)/$(APP_NAME)"
-	cp "AppIcon.icns" "$(RESOURCES_DIR)/AppIcon.icns"
-	@if [ -f "AppIcon-dark.icns" ]; then cp "AppIcon-dark.icns" "$(RESOURCES_DIR)/AppIcon-dark.icns"; fi
-	@if [ -f "Assets.car" ]; then cp "Assets.car" "$(RESOURCES_DIR)/Assets.car"; fi
-	cp -R ".build/release/$(EXECUTABLE_NAME)_$(EXECUTABLE_NAME).bundle" "$(RESOURCES_DIR)/"
+	@rm -rf "$(RESOURCES_DIR)"
+	@mkdir -p "$(MACOS_DIR)" "$(RESOURCES_DIR)"
+	@rm -rf /tmp/SubreplyAppIcon.iconset /tmp/AppIcon.icon
+	@if xcrun -f actool >/dev/null 2>&1; then \
+		.build/release/$(EXECUTABLE_NAME) --export-icon-bundle /tmp/AppIcon.icon && \
+		xcrun actool /tmp/AppIcon.icon --compile "$(RESOURCES_DIR)" --platform macosx --minimum-deployment-target 14.0 --app-icon AppIcon --output-partial-info-plist /tmp/SubreplyIconPartial.plist >/dev/null && \
+		rm -rf /tmp/AppIcon.icon /tmp/SubreplyIconPartial.plist; \
+	fi
+	@.build/release/$(EXECUTABLE_NAME) --export-iconset /tmp/SubreplyAppIcon.iconset && iconutil -c icns /tmp/SubreplyAppIcon.iconset -o "$(RESOURCES_DIR)/AppIcon.icns" && rm -rf /tmp/SubreplyAppIcon.iconset
+	@cp ".build/release/$(EXECUTABLE_NAME)" "$(MACOS_DIR)/$(APP_NAME)"
 	@printf '%s\n' \
 		'<?xml version="1.0" encoding="UTF-8"?>' \
 		'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
@@ -25,7 +31,7 @@ app: build
 		'    <key>CFBundleDevelopmentRegion</key>' \
 		'    <string>en</string>' \
 		'    <key>CFBundleExecutable</key>' \
-		'    <string>Subreply</string>' \
+		'    <string>$(APP_NAME)</string>' \
 		'    <key>CFBundleIconFile</key>' \
 		'    <string>AppIcon</string>' \
 		'    <key>CFBundleIconName</key>' \
@@ -35,9 +41,9 @@ app: build
 		'    <key>CFBundleInfoDictionaryVersion</key>' \
 		'    <string>6.0</string>' \
 		'    <key>CFBundleName</key>' \
-		'    <string>Subreply</string>' \
+		'    <string>$(APP_NAME)</string>' \
 		'    <key>CFBundleDisplayName</key>' \
-		'    <string>Subreply</string>' \
+		'    <string>$(APP_NAME)</string>' \
 		'    <key>CFBundlePackageType</key>' \
 		'    <string>APPL</string>' \
 		'    <key>CFBundleShortVersionString</key>' \
@@ -52,8 +58,9 @@ app: build
 		'    <string>NSApplication</string>' \
 		'</dict>' \
 		'</plist>' > "$(CONTENTS_DIR)/Info.plist"
-	touch "$(BUNDLE_DIR)"
-	codesign --force --deep --sign - "$(BUNDLE_DIR)"
+	@touch "$(BUNDLE_DIR)"
+	@codesign --force --deep --sign - "$(BUNDLE_DIR)" >/dev/null 2>&1 || true
+	@echo "Built $(BUNDLE_DIR)"
 
 run: app
 	open "$(BUNDLE_DIR)"

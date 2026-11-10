@@ -3,9 +3,29 @@ import AppKit
 
 @main
 public struct MacreplyApp: App {
-    @StateObject private var appState = AppState()
+    @StateObject private var appState: AppState
+
+    static func exportIconsetIfRequested() -> Bool {
+        let args = CommandLine.arguments
+        if let idx = args.firstIndex(of: "--export-icon-bundle"), idx + 1 < args.count {
+            let dir = URL(fileURLWithPath: args[idx + 1])
+            try? AppIcon.writeIconComposerBundle(to: dir)
+            return true
+        }
+        if let idx = args.firstIndex(of: "--export-iconset"), idx + 1 < args.count {
+            let dir = URL(fileURLWithPath: args[idx + 1])
+            let mode: AppIcon.AppearanceMode = args.contains("--dark") ? .dark : .light
+            try? AppIcon.writeIconset(to: dir, mode: mode)
+            return true
+        }
+        return false
+    }
 
     public init() {
+        if Self.exportIconsetIfRequested() {
+            exit(0)
+        }
+        _appState = StateObject(wrappedValue: AppState())
         NSApplication.shared.setActivationPolicy(.regular)
         AppIcon.installAppearanceObserver()
     }

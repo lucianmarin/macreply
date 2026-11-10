@@ -433,14 +433,15 @@ struct MacreplyTests {
         #expect(AppIcon.mode(for: NSAppearance(named: .aqua)) == .light)
         #expect(AppIcon.mode(for: NSAppearance(named: .darkAqua)) == .dark)
 
-        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("macreply-xcassets-\(UUID().uuidString)")
+        let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("macreply-icon-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmpDir) }
-        try AppIcon.writeAssetCatalog(to: tmpDir)
-        let contentsURL = tmpDir.appendingPathComponent("AppIcon.appiconset/Contents.json")
-        let contentsText = try String(contentsOf: contentsURL, encoding: .utf8)
-        #expect(contentsText.contains("\"dark\""))
-        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("AppIcon.appiconset/icon_512x512@2x_light.png").path))
-        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("AppIcon.appiconset/icon_512x512@2x_dark.png").path))
+        try AppIcon.writeIconComposerBundle(to: tmpDir)
+        let iconJSONURL = tmpDir.appendingPathComponent("icon.json")
+        let iconJSONText = try String(contentsOf: iconJSONURL, encoding: .utf8)
+        #expect(iconJSONText.contains("light.svg"))
+        #expect(iconJSONText.contains("dark.svg"))
+        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("Assets/light.svg").path))
+        #expect(FileManager.default.fileExists(atPath: tmpDir.appendingPathComponent("Assets/dark.svg").path))
 
         let image = AppIcon.loadOrRenderImage()
         #expect(image.size.width > 0)

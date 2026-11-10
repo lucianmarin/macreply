@@ -12,10 +12,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Macreply",
-            path: "Sources/Macreply",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/Macreply"
         ),
         .testTarget(
             name: "MacreplyTests",

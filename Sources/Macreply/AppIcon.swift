@@ -8,6 +8,22 @@ public enum AppIcon {
         case dark
     }
 
+    public static let lightSVG = """
+    <svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="600" fill="#2EB8B8"/>
+    <path d="M240 249.271C240 243.589 243.21 238.395 248.292 235.854L458.292 130.854C468.265 125.867 480 133.12 480 144.271V230.729C480 236.411 476.79 241.605 471.708 244.146L261.708 349.146C251.735 354.133 240 346.88 240 335.729V249.271Z" fill="#1F4D7A"/>
+    <path d="M120 369.271C120 363.589 123.21 358.395 128.292 355.854L338.292 250.854C348.265 245.867 360 253.12 360 264.271V350.729C360 356.411 356.79 361.605 351.708 364.146L141.708 469.146C131.735 474.133 120 466.88 120 455.729V369.271Z" fill="white"/>
+    </svg>
+    """
+
+    public static let darkSVG = """
+    <svg width="600" height="600" viewBox="0 0 600 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="600" fill="#1F4D7A"/>
+    <path d="M240 249.271C240 243.589 243.21 238.395 248.292 235.854L458.292 130.854C468.265 125.867 480 133.12 480 144.271V230.729C480 236.411 476.79 241.605 471.708 244.146L261.708 349.146C251.735 354.133 240 346.88 240 335.729V249.271Z" fill="white"/>
+    <path d="M120 369.271C120 363.589 123.21 358.395 128.292 355.854L338.292 250.854C348.265 245.867 360 253.12 360 264.271V350.729C360 356.411 356.79 361.605 351.708 364.146L141.708 469.146C131.735 474.133 120 466.88 120 455.729V369.271Z" fill="#2EB8B8"/>
+    </svg>
+    """
+
     @MainActor
     private static var appearanceObservation: NSKeyValueObservation?
     @MainActor
@@ -153,17 +169,7 @@ public enum AppIcon {
     }
 
     public static func loadOrRenderImage(for appearance: NSAppearance? = nil) -> NSImage {
-        let targetMode = mode(for: appearance)
-        let resourceName = targetMode == .dark ? "AppIcon-dark" : "AppIcon"
-        if let url = Bundle.main.url(forResource: resourceName, withExtension: "icns"),
-           let image = NSImage(contentsOf: url) {
-            return image
-        }
-        if let url = Bundle.module.url(forResource: resourceName, withExtension: "icns"),
-           let image = NSImage(contentsOf: url) {
-            return image
-        }
-        return renderNSImage(mode: targetMode)
+        renderNSImage(mode: mode(for: appearance))
     }
 
     public static func writeIconset(to directoryURL: URL, mode: AppearanceMode = .light) throws {
@@ -188,62 +194,74 @@ public enum AppIcon {
         }
     }
 
-    public static func writeAssetCatalog(to xcassetsURL: URL) throws {
-        let appiconsetURL = xcassetsURL.appendingPathComponent("AppIcon.appiconset", isDirectory: true)
-        try FileManager.default.createDirectory(at: appiconsetURL, withIntermediateDirectories: true)
+    /// Writes a macOS Icon Composer `.icon` bundle with `light.svg` (light/default) and `dark.svg` (dark)
+    /// for compilation with `xcrun actool` into a multi-appearance `Assets.car` and `AppIcon.icns`.
+    public static func writeIconComposerBundle(to directoryURL: URL) throws {
+        let assetsURL = directoryURL.appendingPathComponent("Assets", isDirectory: true)
+        try FileManager.default.createDirectory(at: assetsURL, withIntermediateDirectories: true)
 
-        let rootContents = """
+        try Data(lightSVG.utf8).write(to: assetsURL.appendingPathComponent("light.svg"))
+        try Data(darkSVG.utf8).write(to: assetsURL.appendingPathComponent("dark.svg"))
+
+        let iconJSON = """
         {
-          "info" : {
-            "author" : "xcode",
-            "version" : 1
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "srgb:0.18039,0.72157,0.72157,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.12157,0.30196,0.47843,1.00000"
+              }
+            }
+          ],
+          "groups" : [
+            {
+              "layers" : [
+                {
+                  "glass" : false,
+                  "image-name-specializations" : [
+                    {
+                      "value" : "light.svg"
+                    },
+                    {
+                      "appearance" : "dark",
+                      "value" : "dark.svg"
+                    }
+                  ],
+                  "name" : "icon",
+                  "position" : {
+                    "scale" : 1.7066666666666668,
+                    "translation-in-points" : [
+                      0,
+                      0
+                    ]
+                  }
+                }
+              ],
+              "lighting" : "individual",
+              "shadow" : {
+                "kind" : "none",
+                "opacity" : 0.0
+              },
+              "specular" : false,
+              "translucency" : {
+                "enabled" : false,
+                "value" : 0.0
+              }
+            }
+          ],
+          "supported-platforms" : {
+            "squares" : [
+              "macOS"
+            ]
           }
         }
         """
-        try rootContents.data(using: .utf8)?.write(to: xcassetsURL.appendingPathComponent("Contents.json"))
-
-        let pointSizes = [16, 32, 128, 256, 512]
-        var imagesJSON: [[String: Any]] = []
-
-        for pointSize in pointSizes {
-            for scale in [1, 2] {
-                let pixels = pointSize * scale
-                let scaleSuffix = scale == 2 ? "@2x" : ""
-                for mode in AppearanceMode.allCases {
-                    let filename = "icon_\(pointSize)x\(pointSize)\(scaleSuffix)_\(mode.rawValue).png"
-                    guard let pngData = renderPNGData(pixelSize: pixels, mode: mode) else {
-                        throw CocoaError(.fileWriteUnknown)
-                    }
-                    try pngData.write(to: appiconsetURL.appendingPathComponent(filename))
-
-                    var entry: [String: Any] = [
-                        "filename": filename,
-                        "idiom": "mac",
-                        "scale": "\(scale)x",
-                        "size": "\(pointSize)x\(pointSize)"
-                    ]
-                    if mode == .dark {
-                        entry["appearances"] = [
-                            [
-                                "appearance": "luminosity",
-                                "value": "dark"
-                            ]
-                        ]
-                    }
-                    imagesJSON.append(entry)
-                }
-            }
-        }
-
-        let catalogDict: [String: Any] = [
-            "images": imagesJSON,
-            "info": [
-                "author": "xcode",
-                "version": 1
-            ]
-        ]
-        let jsonData = try JSONSerialization.data(withJSONObject: catalogDict, options: [.prettyPrinted, .sortedKeys])
-        try jsonData.write(to: appiconsetURL.appendingPathComponent("Contents.json"))
+        try Data(iconJSON.utf8).write(to: directoryURL.appendingPathComponent("icon.json"))
     }
 
     private static func draw(in ctx: CGContext, pixelSize: Int, mode: AppearanceMode = .light) {
@@ -288,20 +306,15 @@ public enum AppIcon {
             lowerTileColor = teal
         }
 
-        // Outer macOS icon drop shadow
+        // Composite squircle and SVG artwork inside a transparency layer so the macOS drop shadow is applied cleanly once
         ctx.saveGState()
         ctx.setShadow(
             offset: CGSize(width: 0, height: -10.0 * scale),
             blur: 24.0 * scale,
             color: CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.28)
         )
-        ctx.addPath(squirclePath)
-        ctx.setFillColor(backgroundColor)
-        ctx.fillPath()
-        ctx.restoreGState()
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
 
-        // Clip to squircle and draw SVG contents
-        ctx.saveGState()
         ctx.addPath(squirclePath)
         ctx.clip()
 
@@ -323,6 +336,7 @@ public enum AppIcon {
         ctx.setFillColor(lowerTileColor)
         ctx.fillPath()
 
+        ctx.endTransparencyLayer()
         ctx.restoreGState()
         ctx.restoreGState()
     }
