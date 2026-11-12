@@ -112,6 +112,10 @@ struct MacreplyTests {
         #expect(state.systemImage(for: .messages) == "ellipsis.bubble")
         state.hasMessages = true
         #expect(state.systemImage(for: .messages) == "text.bubble")
+        state.isConversationBlocked = true
+        #expect(state.systemImage(for: .messages) == "exclamationmark.bubble")
+        state.isConversationBlocked = false
+        #expect(state.systemImage(for: .messages) == "text.bubble")
 
         state.selectSection(.messages)
         #expect(state.isSectionSelected(.messages) == true)

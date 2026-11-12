@@ -297,6 +297,7 @@ public struct ConversationView: View {
                            current != cleanUsername {
                             let hasBackward = messages.contains { $0.createdBy.username.lowercased() == cleanUsername }
                             isBlockedFromServer = !hasBackward
+                            appState.isConversationBlocked = !hasBackward
                         }
                         isCleared = false
                         clearError = false
@@ -396,6 +397,9 @@ public struct ConversationView: View {
             .subFeedContainer()
         }
         .background(SubTheme.background)
+        .onChange(of: isBlockedWaitingForResponse) { _, blocked in
+            appState.isConversationBlocked = blocked
+        }
         .task(id: "\(cleanUsername)-\(appState.feedRefreshTrigger.uuidString)") {
             applyCachedConversationIfNeeded()
             await loadConversation(reset: true)
@@ -412,12 +416,14 @@ public struct ConversationView: View {
                 canLoadMore = cached.entries.count == pageSize
                 hasLoadedOnce = true
                 appState.hasMessages = !cached.entries.isEmpty
+                appState.isConversationBlocked = isBlockedWaitingForResponse
             } else {
                 messages = []
                 isBlockedFromServer = nil
                 currentPage = 1
                 canLoadMore = false
                 hasLoadedOnce = false
+                appState.isConversationBlocked = false
             }
         }
     }
@@ -454,6 +460,7 @@ public struct ConversationView: View {
             if let blocked = response.blocked {
                 isBlockedFromServer = blocked
             }
+            appState.isConversationBlocked = isBlockedWaitingForResponse
             currentPage = response.page
             canLoadMore = response.entries.count == pageSize
             loadMoreError = false
@@ -479,6 +486,9 @@ public struct ConversationView: View {
                 isCleared = true
                 isConfirmingClear = false
                 clearError = false
+                isBlockedFromServer = false
+                appState.hasMessages = false
+                appState.isConversationBlocked = false
             } else {
                 clearError = true
             }

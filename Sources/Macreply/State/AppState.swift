@@ -147,6 +147,7 @@ public final class AppState: ObservableObject {
         }
     }
     @Published public var hasMessages: Bool = false
+    @Published public var isConversationBlocked: Bool = false
     @Published public private(set) var deliveredNotificationMessages: [String] = []
     @Published public var discoverSearchQuery: String = ""
     @Published public var peopleSearchQuery: String = ""
@@ -251,6 +252,7 @@ public final class AppState: ObservableObject {
 
     public func openConversation(_ username: String) {
         hasMessages = false
+        isConversationBlocked = false
         navigationPath.append(.conversation(username.lowercased()))
     }
 
@@ -340,6 +342,7 @@ public final class AppState: ObservableObject {
         currentUser = nil
         notifications = SubNotifications()
         hasMessages = false
+        isConversationBlocked = false
         deliveredNotificationMessages.removeAll()
         apiClient.clearCache()
         persistSession()
@@ -359,6 +362,9 @@ public final class AppState: ObservableObject {
 
     public func systemImage(for section: SidebarSection) -> String {
         if section == .messages, case .conversation = navigationPath.last {
+            if isConversationBlocked {
+                return "exclamationmark.bubble"
+            }
             return hasMessages ? "text.bubble" : "ellipsis.bubble"
         }
         return section.systemImage
