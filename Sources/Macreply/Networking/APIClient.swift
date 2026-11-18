@@ -565,17 +565,4 @@ public actor APIClient {
         }
         return user
     }
-
-    public func updateDetails(payload: [String: String]) async throws -> SubUser {
-        let data = try await performRequest(
-            path: "/details",
-            method: "PATCH",
-            body: payload
-        )
-        let response = try decode(UserUpdateResponse.self, from: data)
-        guard let user = response.user else {
-            throw APIError.decodingError("Missing updated user")
-        }
-        return user
-    }
 }

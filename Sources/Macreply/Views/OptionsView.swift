@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// Mirrors `templates/pages/profile.html`, `templates/pages/details.html`, and `templates/pages/account.html`
+/// Mirrors `templates/pages/profile.html` and `templates/pages/account.html`
 public struct OptionsView: View {
     @EnvironmentObject private var appState: AppState
 
     public enum Tab: String, CaseIterable {
         case profile = "Profile"
-        case details = "Details"
         case account = "Account"
     }
 
@@ -26,20 +25,6 @@ public struct OptionsView: View {
     @State private var profileStatus: String?
     @State private var isSavingProfile = false
 
-    // Details fields
-    @State private var github: String = ""
-    @State private var instagram: String = ""
-    @State private var linkedin: String = ""
-    @State private var reddit: String = ""
-    @State private var phoneCode: String = ""
-    @State private var phoneNumber: String = ""
-    @State private var paypal: String = ""
-    @State private var spotify: String = ""
-    @State private var xHandle: String = ""
-    @State private var detailsErrors: [String: String] = [:]
-    @State private var detailsStatus: String?
-    @State private var isSavingDetails = false
-
     // Account / Server config
     @State private var serverURL: String = ""
     @State private var serverSavedNotice: Bool = false
@@ -56,8 +41,6 @@ public struct OptionsView: View {
                 switch selectedTab {
                 case .profile:
                     profileForm
-                case .details:
-                    detailsForm
                 case .account:
                     accountSection
                 }
@@ -80,7 +63,6 @@ public struct OptionsView: View {
                 Button {
                     selectedTab = tab
                     profileStatus = nil
-                    detailsStatus = nil
                     serverSavedNotice = false
                     pollingSavedNotice = false
                     appState.refreshNotificationsOnViewChange()
@@ -155,49 +137,6 @@ public struct OptionsView: View {
                     Task { await saveProfile() }
                 }
                 .disabled(isSavingProfile)
-            }
-        }
-    }
-
-    private var detailsForm: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .top, spacing: 7) {
-                SubFormField(label: "GitHub", required: false, text: $github)
-                SubFormField(label: "Instagram", required: false, text: $instagram)
-            }
-            errorRows(for: ["github", "instagram"], in: detailsErrors)
-
-            HStack(alignment: .top, spacing: 7) {
-                SubFormField(label: "LinkedIn", required: false, text: $linkedin)
-                SubFormField(label: "Reddit", required: false, text: $reddit)
-            }
-            errorRows(for: ["linkedin", "reddit"], in: detailsErrors)
-
-            HStack(alignment: .top, spacing: 7) {
-                SubFormField(label: "Code", required: false, placeholder: "+1", text: $phoneCode)
-                    .frame(width: 64)
-                SubFormField(label: "Phone number", required: false, text: $phoneNumber)
-                SubFormField(label: "PayPal", required: false, text: $paypal)
-            }
-            errorRows(for: ["phone", "paypal"], in: detailsErrors)
-
-            HStack(alignment: .top, spacing: 7) {
-                SubFormField(label: "Spotify", required: false, text: $spotify)
-                SubFormField(label: "X", required: false, text: $xHandle)
-            }
-            errorRows(for: ["spotify", "x", "general"], in: detailsErrors)
-
-            HStack {
-                if let detailsStatus {
-                    Text(detailsStatus)
-                        .font(.system(size: 13))
-                        .foregroundStyle(SubTheme.gray)
-                }
-                Spacer()
-                SubSubmitButton(title: isSavingDetails ? "Updating..." : "Update") {
-                    Task { await saveDetails() }
-                }
-                .disabled(isSavingDetails)
             }
         }
     }
@@ -288,16 +227,6 @@ public struct OptionsView: View {
         location = user.location
         link = user.link
         descriptionText = user.description
-
-        github = user.social["github"] ?? ""
-        instagram = user.social["instagram"] ?? ""
-        linkedin = user.social["linkedin"] ?? ""
-        reddit = user.social["reddit"] ?? ""
-        paypal = user.social["paypal"] ?? ""
-        spotify = user.social["spotify"] ?? ""
-        xHandle = user.social["x"] ?? ""
-        phoneCode = user.phone["code"] ?? ""
-        phoneNumber = user.phone["number"] ?? ""
     }
 
     private func saveNotificationPolling() {
@@ -339,39 +268,6 @@ public struct OptionsView: View {
             profileErrors["general"] = error.localizedDescription
         }
         isSavingProfile = false
-    }
-
-    private func saveDetails() async {
-        isSavingDetails = true
-        detailsErrors.removeAll()
-        detailsStatus = nil
-
-        let payload: [String: String] = [
-            "github": github,
-            "instagram": instagram,
-            "linkedin": linkedin,
-            "reddit": reddit,
-            "code": phoneCode,
-            "number": phoneNumber,
-            "paypal": paypal,
-            "spotify": spotify,
-            "x": xHandle
-        ]
-
-        do {
-            let updatedUser = try await appState.apiClient.updateDetails(payload: payload)
-            appState.updateCurrentUser(updatedUser)
-            detailsStatus = "Details updated."
-        } catch let apiError as APIError {
-            if !apiError.fieldErrors.isEmpty {
-                detailsErrors = apiError.fieldErrors
-            } else {
-                detailsErrors["general"] = apiError.localizedDescription
-            }
-        } catch {
-            detailsErrors["general"] = error.localizedDescription
-        }
-        isSavingDetails = false
     }
 }
 

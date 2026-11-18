@@ -43,7 +43,7 @@ The sidebar mirrors `templates/sidebar.html` from the Subreply web app and polls
 | **Replies** | `GET /api/replies` | Stream of direct replies to the current user's posts. Clears unread reply notifications. |
 | **Saved** | `GET /api/saved` | Stream of bookmarked posts. |
 | **Profile** | `GET /api/{username}` | Current user's profile header, bio, metadata, social links, and post stream. |
-| **Options** | `PATCH /api/profile`, `/api/details` | Segmented native forms for **Profile**, **Details** (social handles & phone), and **Account** (API server URL & logout). |
+| **Options** | `PATCH /api/profile` | Segmented native forms for **Profile** and **Account** (API server URL & logout). |
 
 ### Unauthenticated Sidebar Items
 | Item | Endpoint | Description |
@@ -131,7 +131,7 @@ macreply/
 │           ├── PeopleListView.swift   # People, Following, Followers lists with search
 │           ├── MessagesView.swift     # Inbox list and 1-on-1 chat conversation view
 │           ├── ComposerView.swift     # Single-line/auto-expanding 640-char composer
-│           ├── OptionsView.swift      # Profile, Details, and Account settings forms
+│           ├── OptionsView.swift      # Profile and Account settings forms
 │           └── AuthViews.swift        # Login, Register, and About views
 └── Tests/
     └── MacreplyTests/
