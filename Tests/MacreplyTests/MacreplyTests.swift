@@ -81,6 +81,50 @@ struct MacreplyTests {
         #expect(entry.streamKids.map(\.id) == [102, 103, 104, 105, 106])
         #expect(entry.createdBy.cityLabel == "Bucharest")
         #expect(entry.createdBy.allLinks.map(\.name) == ["GitHub", "Phone", "X"])
+        #expect(entry.createdBy.work.isEmpty)
+    }
+
+    @Test("Decodes SubUser work history and formats workplaces matching Subreply filter")
+    func testWorkplacesDecodingAndFormatting() throws {
+        let json = """
+        {
+            "username": "lm",
+            "full_name": "Lucian",
+            "donations": 42.5,
+            "work": [
+                [2018, 2020, "Alpha"],
+                [2022, null, "Subreply"],
+                [2020, 2022, "Beta"]
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let user = try JSONDecoder().decode(SubUser.self, from: json)
+        #expect(user.donations == 42.5)
+        #expect(user.work == [
+            SubWork(startYear: 2018, endYear: 2020, company: "Alpha"),
+            SubWork(startYear: 2022, endYear: nil, company: "Subreply"),
+            SubWork(startYear: 2020, endYear: 2022, company: "Beta")
+        ])
+
+        #expect(ContentParser.workplaces(from: []) == "")
+        #expect(
+            ContentParser.workplaces(from: user.work) ==
+                "Works at Subreply since 2022. Previously at Beta and Alpha for 4 years"
+        )
+        #expect(
+            ContentParser.workplaces(from: [
+                SubWork(startYear: 2021, endYear: nil, company: "One"),
+                SubWork(startYear: 2023, endYear: nil, company: "Two")
+            ]) == "Works at Two since 2023 and One since 2021"
+        )
+        #expect(
+            ContentParser.workplaces(from: [
+                SubWork(startYear: 2015, endYear: 2017, company: "First"),
+                SubWork(startYear: 2019, endYear: 2022, company: "Third"),
+                SubWork(startYear: 2017, endYear: 2019, company: "Second")
+            ]) == "Worked at Third, Second and First between 2015 and 2022 for 7 years"
+        )
     }
 
     @MainActor
@@ -385,11 +429,19 @@ struct MacreplyTests {
         let plainText = String(view.buildAttributedString().characters)
         #expect(plainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Phone, Spotify and X.")
 
-        let donatedView = MemberLinksView(links: links, donated: 25.0)
+        let donatedView = MemberLinksView(links: links, donations: 25.0)
         let donatedPlainText = String(donatedView.buildAttributedString().characters)
         #expect(donatedPlainText == "Also on GitHub, Instagram, LinkedIn, PayPal, Phone, Spotify and X. Donated $25.")
 
-        let donatedOnlyView = MemberLinksView(links: [], donated: 10.5)
+        let combinedView = MemberLinksView(
+            work: "Works at Subreply since 2022",
+            links: links,
+            donations: 25.0
+        )
+        let combinedPlainText = String(combinedView.buildAttributedString().characters)
+        #expect(combinedPlainText == "Works at Subreply since 2022. Also on GitHub, Instagram, LinkedIn, PayPal, Phone, Spotify and X. Donated $25.")
+
+        let donatedOnlyView = MemberLinksView(links: [], donations: 10.5)
         let donatedOnlyPlainText = String(donatedOnlyView.buildAttributedString().characters)
         #expect(donatedOnlyPlainText == "Donated $11.")
 

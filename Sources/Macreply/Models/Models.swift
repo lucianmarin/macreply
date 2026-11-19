@@ -1,5 +1,31 @@
 import Foundation
 
+public struct SubWork: Codable, Equatable, Hashable, Sendable {
+    public var startYear: Int
+    public var endYear: Int?
+    public var company: String
+
+    public init(startYear: Int, endYear: Int? = nil, company: String) {
+        self.startYear = startYear
+        self.endYear = endYear
+        self.company = company
+    }
+
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        self.startYear = try container.decode(Int.self)
+        self.endYear = try container.decode(Int?.self)
+        self.company = try container.decode(String.self)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(startYear)
+        try container.encode(endYear)
+        try container.encode(company)
+    }
+}
+
 public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var id: String { username }
     public var followed: Bool
@@ -11,7 +37,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var lastName: String
     public var createdAt: Double
     public var seenAt: Double
-    public var donated: Double
+    public var donations: Double
     public var timestamp: String
     public var emoji: String
     public var birthday: String
@@ -20,6 +46,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
     public var description: String
     public var phone: [String: String]
     public var social: [String: String]
+    public var work: [SubWork]
 
     enum CodingKeys: String, CodingKey {
         case followed
@@ -31,7 +58,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         case lastName = "last_name"
         case createdAt = "created_at"
         case seenAt = "seen_at"
-        case donated
+        case donations
         case timestamp
         case emoji
         case birthday
@@ -40,6 +67,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         case description
         case phone
         case social
+        case work
     }
 
     public init(
@@ -52,7 +80,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         lastName: String = "",
         createdAt: Double = 0,
         seenAt: Double = 0,
-        donated: Double = 0,
+        donations: Double = 0,
         timestamp: String = "",
         emoji: String = "",
         birthday: String = "",
@@ -60,7 +88,8 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         link: String = "",
         description: String = "",
         phone: [String: String] = [:],
-        social: [String: String] = [:]
+        social: [String: String] = [:],
+        work: [SubWork] = []
     ) {
         self.followed = followed
         self.follows = follows
@@ -71,7 +100,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.lastName = lastName
         self.createdAt = createdAt
         self.seenAt = seenAt
-        self.donated = donated
+        self.donations = donations
         self.timestamp = timestamp
         self.emoji = emoji
         self.birthday = birthday
@@ -80,6 +109,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.description = description
         self.phone = phone
         self.social = social
+        self.work = work
     }
 
     public init(from decoder: Decoder) throws {
@@ -93,7 +123,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? ""
         self.createdAt = try container.decodeIfPresent(Double.self, forKey: .createdAt) ?? 0
         self.seenAt = try container.decodeIfPresent(Double.self, forKey: .seenAt) ?? 0
-        self.donated = try container.decodeIfPresent(Double.self, forKey: .donated) ?? 0
+        self.donations = try container.decodeIfPresent(Double.self, forKey: .donations) ?? 0
         self.timestamp = try container.decodeIfPresent(String.self, forKey: .timestamp) ?? ""
         self.emoji = try container.decodeIfPresent(String.self, forKey: .emoji) ?? ""
         self.birthday = try container.decodeIfPresent(String.self, forKey: .birthday) ?? ""
@@ -102,6 +132,7 @@ public struct SubUser: Codable, Equatable, Hashable, Identifiable, Sendable {
         self.description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
         self.phone = try container.decodeIfPresent([String: String].self, forKey: .phone) ?? [:]
         self.social = try container.decodeIfPresent([String: String].self, forKey: .social) ?? [:]
+        self.work = try container.decodeIfPresent([SubWork].self, forKey: .work) ?? []
     }
 
     public var allLinks: [(name: String, url: URL)] {

@@ -261,10 +261,15 @@ public struct MemberView: View {
                         isMemberHeader: true
                     )
 
+                    let workSummary = ContentParser.workplaces(from: activeMember.work)
                     let links = activeMember.allLinks
-                    if !links.isEmpty || activeMember.donated > 0 {
+                    if !workSummary.isEmpty || !links.isEmpty || activeMember.donations > 0 {
                         Divider().overlay(SubTheme.whitesmoke)
-                        MemberLinksView(links: links, donated: activeMember.donated)
+                        MemberLinksView(
+                            work: workSummary,
+                            links: links,
+                            donations: activeMember.donations
+                        )
                     }
 
                     Divider().overlay(SubTheme.whitesmoke)
@@ -552,20 +557,22 @@ public struct MemberStatusRowView: View {
 }
 
 public struct MemberLinksView: View {
+    public var work: String = ""
     public let links: [(name: String, url: URL)]
-    public var donated: Double = 0
+    public var donations: Double = 0
 
     @State private var viewWidth: CGFloat = SubTheme.contentWidth
     @State private var isHoveringLink: Bool = false
 
-    public init(links: [(name: String, url: URL)], donated: Double = 0) {
+    public init(work: String = "", links: [(name: String, url: URL)], donations: Double = 0) {
+        self.work = work
         self.links = links
-        self.donated = donated
+        self.donations = donations
     }
 
     private var donatedText: String? {
-        guard donated > 0 else { return nil }
-        return "Donated $\(Int(donated.rounded()))."
+        guard donations > 0 else { return nil }
+        return "Donated $\(Int(donations.rounded()))."
     }
 
     public var body: some View {
@@ -611,8 +618,16 @@ public struct MemberLinksView: View {
     public func buildAttributedString() -> AttributedString {
         var attributed = AttributedString()
 
+        if !work.isEmpty {
+            var workPart = AttributedString("\(work).")
+            workPart.font = .system(size: 13)
+            workPart.foregroundColor = SubTheme.gray
+            attributed.append(workPart)
+        }
+
         if !links.isEmpty {
-            var prefix = AttributedString("Also on ")
+            let prefixSpace = attributed.characters.isEmpty ? "" : " "
+            var prefix = AttributedString(prefixSpace + "Also on ")
             prefix.font = .system(size: 13)
             prefix.foregroundColor = SubTheme.gray
             attributed.append(prefix)
@@ -639,7 +654,7 @@ public struct MemberLinksView: View {
         }
 
         if let donatedText {
-            let prefixSpace = links.isEmpty ? "" : " "
+            let prefixSpace = attributed.characters.isEmpty ? "" : " "
             var donatedPart = AttributedString(prefixSpace + donatedText)
             donatedPart.font = .system(size: 13)
             donatedPart.foregroundColor = SubTheme.gray
@@ -688,8 +703,12 @@ public struct MemberLinksView: View {
         ]
 
         let result = NSMutableAttributedString()
+        if !work.isEmpty {
+            result.append(NSAttributedString(string: "\(work).", attributes: regularAttrs))
+        }
         if !links.isEmpty {
-            result.append(NSAttributedString(string: "Also on ", attributes: regularAttrs))
+            let prefixSpace = result.length == 0 ? "" : " "
+            result.append(NSAttributedString(string: prefixSpace + "Also on ", attributes: regularAttrs))
             for idx in links.indices {
                 if idx > 0 {
                     let sep = idx == links.count - 1 ? " and " : ", "
@@ -702,7 +721,7 @@ public struct MemberLinksView: View {
             result.append(NSAttributedString(string: ".", attributes: regularAttrs))
         }
         if let donatedText {
-            let prefixSpace = links.isEmpty ? "" : " "
+            let prefixSpace = result.length == 0 ? "" : " "
             result.append(NSAttributedString(string: prefixSpace + donatedText, attributes: regularAttrs))
         }
 

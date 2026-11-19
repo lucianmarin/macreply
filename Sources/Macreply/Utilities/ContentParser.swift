@@ -169,4 +169,38 @@ public enum ContentParser {
         }
         return host
     }
+
+    private static func joinList(_ parts: [String]) -> String {
+        if parts.count > 1 {
+            return parts.dropLast().joined(separator: ", ") + " and " + parts[parts.count - 1]
+        }
+        return parts.joined()
+    }
+
+    /// Mirrors `app/filters.py:workplaces(work)` from Subreply.
+    public static func workplaces(from work: [SubWork]) -> String {
+        guard !work.isEmpty else { return "" }
+        let items = work.sorted { lhs, rhs in
+            let lhsKey = (lhs.startYear, lhs.endYear ?? 9999)
+            let rhsKey = (rhs.startYear, rhs.endYear ?? 9999)
+            return lhsKey > rhsKey
+        }
+        let current = items.filter { $0.endYear == nil }.map { "\($0.company) since \($0.startYear)" }
+        let pastItems = items.filter { $0.endYear != nil }
+        let past = pastItems.map(\.company)
+        let totalYears = pastItems.reduce(0) { $0 + (($1.endYear ?? $1.startYear) - $1.startYear) }
+
+        var sentences: [String] = []
+        if !current.isEmpty {
+            sentences = ["Works at \(joinList(current))"]
+            if !past.isEmpty {
+                sentences.append("Previously at \(joinList(past)) for \(totalYears) years")
+            }
+        } else if !pastItems.isEmpty {
+            let startYear = pastItems.map(\.startYear).min() ?? 0
+            let endYear = pastItems.compactMap(\.endYear).max() ?? 0
+            sentences = ["Worked at \(joinList(past)) between \(startYear) and \(endYear) for \(totalYears) years"]
+        }
+        return sentences.joined(separator: ". ")
+    }
 }

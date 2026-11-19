@@ -47,9 +47,9 @@ app: build
 		'    <key>CFBundlePackageType</key>' \
 		'    <string>APPL</string>' \
 		'    <key>CFBundleShortVersionString</key>' \
-		'    <string>2.8</string>' \
+		'    <string>2.9</string>' \
 		'    <key>CFBundleVersion</key>' \
-		'    <string>18</string>' \
+		'    <string>19</string>' \
 		'    <key>LSMinimumSystemVersion</key>' \
 		'    <string>14.0</string>' \
 		'    <key>NSHighResolutionCapable</key>' \
